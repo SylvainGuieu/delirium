@@ -1,5 +1,5 @@
 from __future__ import print_function
-from ftplib import FTP, error_perm, error_temp
+from ftplib import FTP, error_perm, error_temp, all_errors
 from shutil import copyfile
 from urlparse import urlsplit, urlparse
 
@@ -225,6 +225,12 @@ class dpath(unicode):
         files can be a string glob as e.g. "*.txt" or a list of file path
         """
         return self.d.put(file)
+    
+    def rmtree(self, path):
+        """ remove the subdirectory defined in path and all its content
+        """
+        return self.d.rmtree(path)
+
     def get(self, glb='*', inside=None, child=None):
         """ get files inside a new directory """
         return self.d.get(glb, inside, child=child)                
@@ -333,6 +339,11 @@ class LocalDirectory(unicode):
                 with open(file,"r") as f:                    
                     filepath.write(f.read())
                     log.notice("file '%s' copied to '%s' "%(file, filepath))
+
+    def rmtree(self, path):
+        """ remove the subrirectory in path """        
+        return local_rmtree(os.path.join(self.directory, path))
+                
                 
     def get(self, files='*', inside=None, child=None):
         child = (lambda x:x) if child is None else child #self.fpath
@@ -549,7 +560,13 @@ class FtpDirectory(LocalDirectory):
                 d, filename = os.path.split(file)              
                 ftp.storbinary('STOR %s'%os.path.join(self.directory,filename), f)     # send the file
                 log.notice("file '%s' transfered in '%s' "%(file, self))
-            
+    
+
+    def rmtree(self, path):
+        """ remove the subrirectory in path """
+        ftp = self._get_ftp()
+        return ftp_rmtree(ftp, os.path.join(self.directory, path))
+
     def ls(self, glob='*'):
         """ list file in directory from glob. e.g. '*.txt' 
 
@@ -817,7 +834,7 @@ class fpath(unicode):
         elif header is not None:
             raise ValueError("header must be a string or a callable method got a %s object"%type(header))
         else:    
-            self.write()       
+            self.write("")       
 
     @property
     def filename(self):
@@ -1003,6 +1020,37 @@ def ftp_dirlist(ftp, directory, verbose=VERBOSE):
 
     return listfile
 
+
+
+def ftp_rmtree(ftp, path):
+    """Recursively delete a directory tree on a remote server."""
+    wd = ftp.pwd()
+
+    try:
+        names = ftp.nlst(path)
+    except all_errors as e:
+        # some FTP servers complain when you try and list non-existent paths
+        return
+
+    for name in names:
+        if os.path.split(name)[1] in ('.', '..'): continue
+
+
+        try:
+            ftp.cwd(name)  # if we can cwd to it, it's a folder
+            ftp.cwd(wd)  # don't try a nuke a folder we're in
+            ftp_rmtree(ftp, name)
+        except all_errors:
+            ftp.delete(name)
+
+    try:
+        ftp.rmd(path)
+    except all_errors as e:        
+        return
+
+def local_rmtree(path):
+    import shutil
+    shutil.rmtree(path)
 
 
 def _ftp_glob_dirlist_rec(ftp, path_list, pref="", verbose=VERBOSE):

@@ -8,6 +8,9 @@ import sys
 import os
 log = Log(context=("DELIRIUM",))
 DEBUG = False
+
+## number of subdiretories that will be saved
+cashSize = 8
 #DEBUG = False
 ### 
 ## directory where to found the yyyy-mm/delirium_files
@@ -35,6 +38,7 @@ deliriumdir = webroot.dpath("delirium")
 datadir = deliriumdir.dpath("data")
 dailydir, monitoringdir = datadir.dbreak("daily", "monitoring")
 
+datesfile = dailydir.fpath("dates.txt")
     
 indexfile = deliriumdir.fpath("index.html")
 indexfile.header = localhtmldir.fpath("index.html").read
@@ -58,13 +62,40 @@ def list_all_dates():
 def reprocess_all(dates):
     for date in dates:
         run(date, plot=False, wiki=False)
-                
-def prepare_web_structure():
-    global webroot, mdir, ddir
+
+def read_dates(file):
+    with open(file) as f:
+        pass
+
+def prepare_web_structure(date):
+    global webroot, mdir, ddir, todaydir
 
     ## make the dictionary if they does not exists
     dailydir.prepare()
     monitoringdir.prepare()
+
+    todaydir = io.dpath(dailydir, date).prepare()
+    todaydir.fpath("data.json").prepare()
+    
+    mtimes = {}
+    for subdir in dailydir.ls("[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"):
+        mtimes[dailydir.getmtime(subdir+"/data.json")] = subdir
+    ordered = mtimes.keys()
+    ordered.sort()    
+    dates = [mtimes[k] for k in ordered[-cashSize:]]
+    with datesfile.open("w") as g:
+        g.write("dates = [")
+        g.write(", ".join( '"%s"'%d for d in dates ))
+        g.write("];")
+
+    for tm in ordered[:-cashSize]:
+        log.notice("removing Old Directory: %s"%mtimes[tm])
+        dailydir.rmtree(mtimes[tm])
+
+    #todaydir = dailydir
+
+    #datesfile.prepare()
+
 
     ## copy the index.html file if it does not exists
     indexfile.create()
@@ -114,12 +145,15 @@ def product2js(products):
     return text
 
 def run(date=None, dls=range(1,7), plot=True, wiki=True):
+    global todaydir
     if date is None:
         date = datetime.date.today().isoformat()
 
     if webroot:
-        prepare_web_structure()
-    products = io.Product(dailydir.fpath("data.js"), date)
+        prepare_web_structure(date)
+    today_relative_dir = "data/daily/"+date
+
+    products = io.Product(todaydir.fpath("data.js"), date)
 
     ## get a list of direct files
     fdirect  = dldir.deliriumfiles(date, "direct")
@@ -147,7 +181,7 @@ def run(date=None, dls=range(1,7), plot=True, wiki=True):
         ###
         # The file to write 
         cor_file        = file.replace_ext('_CORR2.txt') # correction text file              
-        wk_cor_file     = dailydir.fpath("DL%d_last_CORR.txt"%num) # correction text file in wiki
+        wk_cor_file     = todaydir.fpath("DL%d_last_CORR.txt"%num) # correction text file in wiki
            
 
         if DEBUG:
@@ -186,31 +220,31 @@ def run(date=None, dls=range(1,7), plot=True, wiki=True):
         if wiki:      
             cor_file.copy(wk_cor_file)
             log.notice("Correction file copied to %s"%wk_cor_file)
-            products.add( num, "Corrections", "d", "txtfile",  "data/daily/"+wk_cor_file.filename)
-
-        ##
+            products.add( num, "Corrections", "d", "txtfile",  today_relative_dir+"/"+wk_cor_file.filename)
+                
+        ##              
         # some plots
 
         # Deformation/Corrections plots in both directions
         if plot and wiki:
             for k  in ["H", "V"]:
-                wiki_file = dailydir.fpath("DL%d_last_%s_CORR.png"%(num,k))
+                wiki_file = todaydir.fpath("DL%d_last_%s_CORR.png"%(num,k))
                 with wiki_file.open("wb") as g:  
                     dld.rail.plot.deformations(k, figure=inc(fig), fclear=True, save=g)
                 #cor_H_fig_file.copy(wk_cor_H_fig_file) 
                 log.notice("Correction figure copied to %s"%wiki_file)       
-                products.add(num, "%s corection plot"%k, "d", "img", "data/daily/"+wiki_file.filename)
-
-            for k in ["theta", "psi", "phi"]:
+                products.add(num, "%s corection plot"%k, "d", "img", today_relative_dir+"/"+wiki_file.filename)
+                
+            for                 k in ["theta", "psi", "phi"]:
                 #archive = file.replace_ext('wobble_%s.png'%k)
-                wiki_file = dailydir.fpath("DL%d_last_%s_theta.png"%(num,k))
+                wiki_file = todaydir.fpath("DL%d_last_%s_theta.png"%(num,k))
                 with wiki_file.open("wb") as g:  
                     dld.carriage.plot.wobble_fit(k, figure=inc(fig), fclear=True, save=g)
                 #archive.copy(wiki_file)
                 log.notice("Wobble figure copied to %s"%wiki_file)        
-                products.add( num, "Wobble %s plot"%k, "d", "img", "data/daily/"+wiki_file.filename)
-            
-
+                products.add( num, "Wobble %s plot"%k, "d", "img", today_relative_dir+"/"+wiki_file.filename)
+                            
+                
         ## get the wobble monitoring file 
         wblfile = io.WobbleLog(monitoringdir.fpath("DL%d_wobble.txt"%num)).prepare()
         ## add the wobble amplitude results at the end
@@ -302,14 +336,14 @@ def run(date=None, dls=range(1,7), plot=True, wiki=True):
                 # The daily histeresis plots 
                 for k in ["theta", "psi"]:
                     ## histeresis plot
-                    wiki_file = dailydir.fpath("DL%d_%s_histeresis.png"%(num,k)) 
+                    wiki_file = todaydir.fpath("DL%d_%s_histeresis.png"%(num,k)) 
                     with wiki_file.open("wb") as g:
                         hyst.plot.histeresis(k,  fclear=True, figure=inc(fig), save=g)
                         
                         log.notice("Histeresis %s plot updated to  %s"%(k,wiki_file))
-                        products.add(num, "Hysteresis %s plot"%k, "d",  "img", "data/daily/"+wiki_file.filename)
-            
-
+                        products.add(num, "Hysteresis %s plot"%k, "d",  "img", today_relative_dir+"/"+wiki_file.filename)
+                            
+                
                 # monitoring plots        
                 wdata = hystfile.read_data()                       
                 for k in ["hysteresis"]: 
@@ -339,13 +373,14 @@ def run(date=None, dls=range(1,7), plot=True, wiki=True):
         ##
         # add the data.js in the wiki    
         if wiki:  
-            products.flushjs()            
+            products.flushjs() 
+            products.flushjson()           
 
 def write_failure(context, origfile, files):
     for file in files:
         with file.open("w") as g:
             g.write("!!!! Corection could not be computed. Got the following errors : \n ")
-            g.write("script executed at %s\n"%(time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime())))
+            g.write("script executed at %s\n UT"%(time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())))
             g.write("on file %s\n"%origfile) 
             g.write("".join(get_buffer(context, "ERROR")))
 

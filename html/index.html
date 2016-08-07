@@ -3,7 +3,7 @@
 <head>
 	<title>Delirium</title>
 
-<script type="text/javascript" src="data/daily/data.js"></script>
+<script type="text/javascript" src="data/daily/dates.txt"></script>
 <script type="text/javascript"> 
 	//data = {{dl_files_data}}
 		
@@ -266,6 +266,9 @@
 
 	function update_dls() {
 		dls = document.getElementById("DLselection")
+		while (dls.firstChild) {
+    		dls.removeChild(dls.firstChild);
+		}
 		for (var i=0; i<dlsnum.length; i++) {
 			var o = document.createElement("option")
 			o.value = dlsnum[i]
@@ -408,7 +411,6 @@
 
 	function add_content(definition, pos, content, noscale, callback) {
 		
-
 		type = get_type(definition)
 
 		if (type=="img") {
@@ -691,7 +693,7 @@
 		c = document.getElementById("control")
 		h = document.getElementById("controlHidder")
 		s = document.getElementById("controlShower")
-		control.style['display'] = "none"
+		c.style['display'] = "none"
 		h.style["display"] = "none"
 		s.style["display"] = "block"
 		//h.innerHTML = "Show Selection"
@@ -702,7 +704,7 @@
 		h = document.getElementById("controlHidder")
 		s = document.getElementById("controlShower")
 
-		control.style['display'] = "block"
+		c.style['display'] = "block"
 		h.style["display"] = "block"
 		s.style["display"] = "none"
 		//h.innerHTML = "Hidde"
@@ -763,24 +765,88 @@
 	}
 	function update_dates(){
 		el = document.getElementById("date")
+		elc = document.getElementById("dateChooser")
+		if (elc!=undefined) {
+			while (elc.firstChild) {
+    			elc.removeChild(elc.firstChild);
+			}
+			for(var i=0; i<dates.length; i++){
+				newelem = document.createElement("option")
+				newelem.value = dates[i]
+				newelem.innerHTML = dates[i]
+				if (dates[i]==date) newelem.selected = true;
+				elc[elc.length] = newelem
+			}
 
+		}		
 		if (el!=undefined) {
 			el.innerHTML = date
-		}
+			el.style['display'] = "inline";
+			elc.style['display'] = "none";
+		}		
 		el = document.getElementById("script_date")
 
 		if (el!=undefined) {
 			el.innerHTML = script_date
 		}
 	}
+	function choose_date(){
+		el = document.getElementById("date")
+		elc = document.getElementById("dateChooser")
+		elc.style['display'] = "inline";
+		elc.focus()
+		var event;
+	    event = document.createEvent('MouseEvents');
+    	event.initMouseEvent('mousedown', true, true, window);
+	    elc.dispatchEvent(event);
+	}
+	function load_from_selected_date() {
+			elc = document.getElementById("dateChooser")
+			for (var i=0; i<elc.length; i++){
+				if (elc[i].selected) return load_data(elc[i].value);
+			}
+	}
 
+	function load_data(date) {
+		var client = new XMLHttpRequest();				
+		var rdm = script_date
+		
+		file = "data/daily/"+date+"/data.json"		
+		//pt = get_plaintext(content)		
+		client.open('GET', file+"?"+rdm, true);
+						
+		client.onreadystatechange = function() {
+				if (this.readyState!==4)  return;
+			  	//if (this.status!==200 || this.status!==0) alert(this.status);
+			  	alldata = JSON.parse(this.responseText)
+
+			  	// temporary parser
+			  	keys = ['date', 'script_date', 
+			  		    'daily_product_names', 
+			  		    'monitoring_product_names', 
+			  		    'dlsnum', 
+			  		    'data'
+			  	]
+			  	for (var i=0; i<keys.length; i++) {
+			  		window[keys[i]] = alldata[keys[i]]
+			  	}
+
+			 	update_dls()
+				update_products()
+				readhash()
+				update_content()
+				update_dates()
+			}
+			client.send();
+	}
 	var windowloaded = false
 	window.onload = function() {	
-		update_dls()
+		/* update_dls()
 		update_products()
 		readhash()
 		update_content()
-		update_dates()
+		update_dates()*/
+		load_data(dates[dates.length-1])
 		window.onkeydown = function (event) {
 			//alert(event.keyCode)
 			switch(event.keyCode) {
@@ -790,7 +856,8 @@
 				case 39:
 					next_float_content();
 					break;
-				case 37:					prev_float_content();					
+				case 37:					
+					prev_float_content();					
 					break;	
 				case 189:
 					reduce_img_size();
@@ -865,8 +932,7 @@ h2.firstTitle  {
 	z-index: 10;
 }
 #FloatClose {
-	float: right;
-	align: right;
+	float: right;	
 	margin-right: 2px;
 	margin-top: 2px;
 	cursor: pointer;
@@ -910,7 +976,9 @@ h2.firstTitle  {
 	margin-left: 0px;
 	padding: 10px 10px 10px 10px;
 }
-
+#date {
+	cursor: pointer;
+}
 #bheader {
 	/*background-color: #f0f0f0;
 	border: 3px solid #f0f0f0;
@@ -931,8 +999,14 @@ h2.firstTitle  {
 }
 .selector {
 	background-color: #344351;	
+	background-color: #707B7C;
 	color: #fff;
 	border: none;
+	/*
+	background-color: #fff;	
+	color: #000;
+	border: thin solid #707B7C;
+	*/
 	width: 100%;
 	padding-left:10px;
 	padding-right: 10px;
@@ -941,7 +1015,14 @@ h2.firstTitle  {
 }
 .headerselector {
 	background-color: #344351;
+	background-color: #707B7C;
 	color: #fff;
+	border: none;
+	/*
+	background-color: #fff;	
+	color: #000;
+	border: thin solid #707B7C;
+	*/
 }
 .imgcontrol {
 	cursor: pointer;
@@ -972,7 +1053,7 @@ option:checked {
 	<div id="FloatClose" onclick="close_float_content()">X</div>
 </span>
 <div>
-<h1 class="title">Delirium <span id="date"></span>
+<h1 class="title">Delirium <span id="date" onclick="choose_date()">-Choose Date-</span><select id="dateChooser" style="display:none" onchange="load_from_selected_date()"></select>
 <span class="dates" id="dates">	
 	Script executed at : <span id="script_date"></span>	
 </span>

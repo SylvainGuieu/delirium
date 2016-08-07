@@ -354,7 +354,7 @@ class Product(fpath):
         self = fpath.__new__(cl, file)
         self.date = date
         if script_date is None:
-            script_date = datetime.datetime.now().isoformat()
+            script_date = datetime.datetime.utcnow().isoformat()
         self.script_date = script_date    
         self.products = {}
         return self
@@ -384,6 +384,41 @@ class Product(fpath):
         if not name in names:
             names.append(name)
     
+
+    def product2json(self):
+        """ transform the product to a string json file """
+        products = self.products
+        text = ""
+        #text += """   "daily_product_names": [\n    %s\n],\n"""%(",\n    ".join('"%s"'%n for n in products['daily_product_names']))
+        text += """   "daily_product_names": [%s],\n"""%(", ".join('"%s"'%n for n in products['daily_product_names']))
+        #text += """   "monitoring_product_names": [\n    %s\n],\n"""%(",\n    ".join('"%s"'%n for n in products['monitoring_product_names']))
+        text += """   "monitoring_product_names": [%s],\n"""%(", ".join('"%s"'%n for n in products['monitoring_product_names']))
+
+        text += """   "dlsnum": [%s],\n"""%(",".join("%d"%n for n in products['data']))
+
+        ind = " "*4
+        blocks = []
+        for dlnum,subproducts in products['data'].iteritems():
+            block = ind+""""%d" : {\n"""%dlnum
+
+            subblocks = []
+            for name, args in subproducts.iteritems():
+                ptype = args[0]
+                args = args[1:]
+                subblock = """"%s" : ["%s","""%(name, ptype)
+
+                subblock += ",".join('"%s"'%a for a in args)
+                subblock += "]"
+                subblocks.append(subblock)
+            block += (ind*2)+((",\n"+ind*2).join(subblocks))
+            
+
+            block += "\n"+ind+"}" 
+            blocks.append(block)   
+        
+        text += """   "data" : {\n%s\n}"""%(",\n".join(blocks))
+        return text              
+
     def product2js(self):
         """ transform the product to a string javascript executable """
         products = self.products
@@ -421,4 +456,10 @@ class Product(fpath):
             g.write("script_date = '%s';\n"%self.script_date)
             g.write(self.product2js())
 
+    def flushjson(self):
+        with fpath(self).replace_ext(".json").open('w') as g:
+            g.write("""{\n   "date": "%s",\n"""%self.date)
+            g.write("""   "script_date": "%s",\n"""%self.script_date)
+            g.write(self.product2json())
+            g.write("\n}")        
                     
