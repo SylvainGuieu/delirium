@@ -356,9 +356,13 @@
 					    content.appendChild(h3)
 					}
 					definition = subdata['data'][subdata['dlsnum'][i]][subdata['daily_product_names'][j]]
-					pos = fk
-					add_content(definition,pos, content)
-					fk += 1 ;
+					if (definition==undefined) {
+						baradd(1)
+					} else {
+						pos = fk
+						add_content(definition,pos, content)
+						fk += 1 ;
+					}
 			   	}	
 				for (var j=0; j<subdata['monitoring_product_names'].length; j++) {	
 					if (alignedproduct) {
@@ -368,9 +372,13 @@
 					    content.appendChild(h3)
 					}					
 					definition = subdata['data'][subdata['dlsnum'][i]][subdata['monitoring_product_names'][j]]
-					pos = fk
-					add_content(definition,pos, content)
-					fk += 1;
+					if (definition==undefined) {
+						baradd(1)
+					} else {
+						pos = fk
+						add_content(definition,pos, content)
+						fk += 1;
+					}
 			   	}				
 		}
 

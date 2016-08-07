@@ -10,7 +10,10 @@ log = Log(context=("DELIRIUM",))
 DEBUG = False
 
 ## number of subdiretories that will be saved
-cashSize = 8
+maxDays  = 8 # keep always the delirium that are younger or maxDays old 
+cashSize = 8 # keep also a max number of cashSize for file that does not match 
+             # the criteria above. (useful if one execute the scripte on some old delirium) 
+
 #DEBUG = False
 ### 
 ## directory where to found the yyyy-mm/delirium_files
@@ -74,26 +77,43 @@ def prepare_web_structure(date):
     dailydir.prepare()
     monitoringdir.prepare()
 
+    ## make the target today directory 
     todaydir = io.dpath(dailydir, date).prepare()
+    ## if does not exists make a dummy data.json file
     todaydir.fpath("data.json").prepare()
-    
-    mtimes = {}
+
+    ## list all the subdirectory 
+    ## check when they have been created (mtime of data.json)
+    ## sort them and keep the last *cashSize* created or if it 
+    ## a delirium of less than maxDays  
+    mtimes = []
     for subdir in dailydir.ls("[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"):
-        mtimes[dailydir.getmtime(subdir+"/data.json")] = subdir
-    ordered = mtimes.keys()
-    ordered.sort()    
-    dates = [mtimes[k] for k in ordered[-cashSize:]]
+        mtimes.append( [dailydir.getmtime(subdir+"/data.json"), datetime.date( *(int(v) for v in subdir.split("-"))) ])
+    # order by creation date
+    mtimes.sort(key=lambda i:i[0], reverse=True)
+    tokeep = []
+    toremove = []
+    today = datetime.date.today()
+    deltatime = datetime.timedelta(maxDays)
+
+    for i, (mtime, date) in enumerate(mtimes):
+        if i<cashSize:
+            tokeep.append(date)
+        elif (today-date)<=deltatime:
+            tokeep.append(date)
+        else:
+            toremove.append(date)    
+    tokeep.sort()
+
     with datesfile.open("w") as g:
         g.write("dates = [")
-        g.write(", ".join( '"%s"'%d for d in dates ))
+        g.write(", ".join( '"%s"'%d for d in tokeep ))
         g.write("];")
 
-    for tm in ordered[:-cashSize]:
-        log.notice("removing Old Directory: %s"%mtimes[tm])
-        dailydir.rmtree(mtimes[tm])
-
-    #todaydir = dailydir
-
+    for date in toremove:
+        log.notice("removing Old Directory: %s"%date)
+        dailydir.rmtree(str(date))
+       
     #datesfile.prepare()
 
 
@@ -114,35 +134,6 @@ def add_product(products, dlnum, name, kind, ptype, *args):
     if not name in names:
         names.append(name)
 
-def product2js(products):
-
-    text = "daily_product_names = [\n    %s\n];\n"%(",\n    ".join("'%s'"%n for n in products['daily_product_names']))
-    text += "monitoring_product_names = [\n    %s\n];\n"%(",\n    ".join("'%s'"%n for n in products['monitoring_product_names']))
-
-    text += "dlsnum = [%s];\n"%(",".join("%d"%n for n in products['data']))
-
-    ind = " "*4
-    blocks = []
-    for dlnum,subproducts in products['data'].iteritems():
-        block = ind+"%d : {\n"%dlnum
-
-        subblocks = []
-        for name, args in subproducts.iteritems():
-            ptype = args[0]
-            args = args[1:]
-            subblock = "'%s' : ['%s',"%(name, ptype)
-
-            subblock += ",".join("'%s'"%a for a in args)
-            subblock += "]"
-            subblocks.append(subblock)
-        block += (ind*2)+((",\n"+ind*2).join(subblocks))
-        
-
-        block += "\n"+ind+"}" 
-        blocks.append(block)   
-    
-    text += "data = {\n%s\n};"%(",\n".join(blocks))
-    return text
 
 def run(date=None, dls=range(1,7), plot=True, wiki=True):
     global todaydir
@@ -192,7 +183,14 @@ def run(date=None, dls=range(1,7), plot=True, wiki=True):
             except:
                 log.error("cannot load data of '%s'. Is data corrupted ?"%(file))
                 
-                write_failure(context, file, ([cor_file, wk_cor_file] if wiki else [cor_file]))                
+                write_failure(context, file, ([cor_file, wk_cor_file] if wiki else [cor_file]))
+                if wiki:
+                    try:              
+                        log.notice("Correction file copied to %s"%wk_cor_file)
+                        products.add( num, "Corrections", "d", "txtfile",  today_relative_dir+"/"+wk_cor_file.filename)
+                    except:
+                        pass                        
+                                
                 continue
 
         fig = [1]
@@ -210,11 +208,22 @@ def run(date=None, dls=range(1,7), plot=True, wiki=True):
             try:   
                 dld.rail.supports.log_corrections(filename=cor_file) 
             except DataError:                
-                write_failure(context, file, ([cor_file, wk_cor_file] if wiki else [cor_file]))              
+                write_failure(context, file, ([cor_file, wk_cor_file] if wiki else [cor_file]))
+                try:              
+                    log.notice("Correction file copied to %s"%wk_cor_file)
+                    products.add( num, "Corrections", "d", "txtfile",  today_relative_dir+"/"+wk_cor_file.filename)
+                except:
+                    pass                
                 continue     
             except:
                 log.error("cannot compute corrections. Is data corrupted ?")
-                write_failure(context, file, ([cor_file, wk_cor_file] if wiki else [cor_file]))             
+                write_failure(context, file, ([cor_file, wk_cor_file] if wiki else [cor_file]))
+                if wiki:
+                    try:              
+                        log.notice("Correction file copied to %s"%wk_cor_file)
+                        products.add( num, "Corrections", "d", "txtfile",  today_relative_dir+"/"+wk_cor_file.filename)
+                    except:
+                        pass                                                               
                 continue    
         # copy them to wiki  
         if wiki:      
@@ -371,9 +380,9 @@ def run(date=None, dls=range(1,7), plot=True, wiki=True):
                     products.add(num, "%s temp plot"%k, "m", "img", "data/monitoring/"+wiki_file.filename)    
 
         ##
-        # add the data.js in the wiki    
+        # add the data.json in the wiki
         if wiki:  
-            products.flushjs() 
+            #products.flushjs() 
             products.flushjson()           
 
 def write_failure(context, origfile, files):
