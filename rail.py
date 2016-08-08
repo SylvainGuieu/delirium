@@ -4,7 +4,7 @@ from delirium import DataUtils
 from .parameters import parameters
 import numpy as np
 
-class Rail(object, DataUtils):    
+class Rail(object, DataUtils):   
     ## 
     #
     # support number = support_sep*2*opl + support_offset*2

@@ -350,13 +350,15 @@ class Product(fpath):
     web page.
     """
 
-    def __new__(cl, file, date=None, script_date=None):
+    def __new__(cl, file, date=None, script_date=None, dirs={}):
         self = fpath.__new__(cl, file)
         self.date = date
         if script_date is None:
             script_date = datetime.datetime.utcnow().isoformat()
         self.script_date = script_date    
         self.products = {}
+        self.dirs = dict(dirs)
+
         return self
     def add(self, dlnum, name, kind, ptype, *args):
         """ add a product to the list 
@@ -376,6 +378,11 @@ class Product(fpath):
         products = self.products
 
         kkind = "daily_product_names" if kind is 'd' else "monitoring_product_names"
+
+        args = list(args)        
+        if ptype in ("img","txtfile"):
+            args[0] = os.path.join(self.dirs.get(kind, ""), args[0])
+            
         products.setdefault("data" , {})
         names = products.setdefault(kkind, [])
 
@@ -405,6 +412,8 @@ class Product(fpath):
             for name, args in subproducts.iteritems():
                 ptype = args[0]
                 args = args[1:]
+
+
                 subblock = """"%s" : ["%s","""%(name, ptype)
 
                 subblock += ",".join('"%s"'%a for a in args)

@@ -9,6 +9,7 @@
 		
 	imgzoomfactor = 1.25
 	zoom = -1
+	date = "last"
 
 	barstatus = 0
 	barsize = 0
@@ -52,8 +53,12 @@
 		return false;
 	}
 
-	function readhash() {
+	function readhash(skip) {
 		if (hashdisabled) return 0;		
+
+		if (skip==undefined){
+			skip = []
+		}
 
 		hashes = window.location.hash.substring(1).split("&")
 
@@ -66,12 +71,17 @@
 				}
 			}
 		}
+		
 
 		for (var k=0; k<hashes.length; k++ ) {
 
 			keyval = hashes[k].split("=")
-			content_to_update = false
-
+			for (var ski=0; ski<skip.length; ski++){
+				if (keyval[0]==skip[ski]){
+					continue;
+				}
+			}
+			
 			switch(keyval[0]) {
 				case "cf":
 					vals = keyval[1].split(",")					
@@ -80,7 +90,7 @@
 					document.getElementById("alignProductCheck").checked = alignedproduct
 					aligneddl = parseInt(vals[2])
 					document.getElementById("alignDLCheck").checked =  aligneddl
-					content_to_update = true
+
 					show_control = parseInt(vals[3])
 					if (show_control) {
 						display_control()
@@ -88,42 +98,48 @@
 						hide_control()
 					}
 					break
+				case "date":					
+					var check = false;
+
+					newdate = keyval[1]
+					for (var i=0; i<dates.length; i++) {
+						if (newdate==dates[i]) {
+							check=true;
+							break
+						}
+					}
+					if (check) {						
+						date = newdate
+					}
+					break
+
 				case "zoom":
 					zoom = parseFloat(keyval[1])
-					content_to_update = true
+
 					break;
 				case "alignedproduct":
 					val = parseInt(keyval[1])
 					alignedproduct = val
-					content_to_update = true
 					
 					document.getElementById("alignProductCheck").checked = val
 
-					break;
+					break;					
 				case "aligneddl":
 					val = parseInt(keyval[1])
 					aligneddl = val
-					content_to_update = true										
 					document.getElementById("alignDLCheck").checked =  val
 					break;
 				case "dls":
 					setoptions(document.getElementById("DLselection"), keyval[1])					
-					content_to_update = true
 					break;
 				case "dp":	
 					setoptions_l(document.getElementById("DailyProductSelection"), keyval[1])
-					content_to_update = true				
 					break;
 				case "mp":	
 					setoptions_l(document.getElementById("MonitoringProductSelection"), keyval[1])
-					content_to_update = true				
 					break;	
 			}
-
-		}
-		if (content_to_update) {
-			update_content()
-		}
+		}		
 	}
 	function setoptions(e, svars) {
 		var vars = svars.split(";")
@@ -184,6 +200,13 @@
 		//text += "zoom="+zoom
 		//text += "&alignedproduct="+(alignedproduct*1)
 		//text += "&aligneddl="+(aligneddl*1)
+		
+		// put the date in hash only if it is not the 
+		// last
+		if (date!="last") {
+			text+= "&date="+date
+		}
+
 		var e = document.getElementById("DLselection")
 		text += "&dls="+getoptions(e)
 		var e = document.getElementById("DailyProductSelection")
@@ -774,21 +797,33 @@
 	function update_dates(){
 		el = document.getElementById("date")
 		elc = document.getElementById("dateChooser")
+		if (date=="last") {
+			var fdate = dates[dates.length-1]
+		} else {
+			fdate = date
+		}
+
 		if (elc!=undefined) {
 			while (elc.firstChild) {
     			elc.removeChild(elc.firstChild);
 			}
-			for(var i=0; i<dates.length; i++){
+			if (!elc.length) {
+				for(var i=0; i<dates.length; i++){
+					newelem = document.createElement("option")
+					newelem.value = dates[i]
+					newelem.innerHTML = dates[i]
+					if (dates[i]==date) newelem.selected = true;
+					elc[elc.length] = newelem
+				}
 				newelem = document.createElement("option")
-				newelem.value = dates[i]
-				newelem.innerHTML = dates[i]
-				if (dates[i]==date) newelem.selected = true;
+				newelem.value = "last";
+				newelem.innerHTML = "last";
+				if (date=="last") newelem.selected = true;
 				elc[elc.length] = newelem
 			}
-
 		}		
 		if (el!=undefined) {
-			el.innerHTML = date
+			el.innerHTML = fdate
 			el.style['display'] = "inline";
 			elc.style['display'] = "none";
 		}		
@@ -806,20 +841,32 @@
 		var event;
 	    event = document.createEvent('MouseEvents');
     	event.initMouseEvent('mousedown', true, true, window);
-	    elc.dispatchEvent(event);
+	    elc.dispatchEvent(event);	    	    
 	}
-	function load_from_selected_date() {
-			elc = document.getElementById("dateChooser")
-			for (var i=0; i<elc.length; i++){
-				if (elc[i].selected) return load_data(elc[i].value);
+	function load_from_selected_date() {			
+			elc = document.getElementById("dateChooser")			
+			for (var i=0; i<elc.length; i++){				
+				if (elc[i].selected) {					
+					date = elc[i].value;
+					writehash()
+					return load_data();
+				}
 			}
+
+
 	}
 
-	function load_data(date) {
+	function load_data() {
 		var client = new XMLHttpRequest();				
-		var rdm = script_date
-		
-		file = "data/daily/"+date+"/data.json"		
+		//var rdm = script_date
+
+		if (date=="last") {
+			var fdate = dates[dates.length-1]
+		} else {
+			var fdate = date
+		}
+		rdm = Math.random().toString(36).substring(7);
+		file = "data/daily/"+fdate+"/data.json"		
 		//pt = get_plaintext(content)		
 		client.open('GET', file+"?"+rdm, true);
 						
@@ -829,7 +876,7 @@
 			  	alldata = JSON.parse(this.responseText)
 
 			  	// temporary parser
-			  	keys = ['date', 'script_date', 
+			  	keys = ['script_date', 
 			  		    'daily_product_names', 
 			  		    'monitoring_product_names', 
 			  		    'dlsnum', 
@@ -838,12 +885,16 @@
 			  	for (var i=0; i<keys.length; i++) {
 			  		window[keys[i]] = alldata[keys[i]]
 			  	}
-
+			  	
+			  	
 			 	update_dls()
-				update_products()
+				update_products()	
+				var sdate = date //save the date
 				readhash()
+				date = sdate
 				update_content()
 				update_dates()
+				writehash()
 			}
 			client.send();
 	}
@@ -854,7 +905,9 @@
 		readhash()
 		update_content()
 		update_dates()*/
-		load_data(dates[dates.length-1])
+		//date = "last"//dates[dates.length-1]	
+		readhash([])			
+		load_data()
 		window.onkeydown = function (event) {
 			//alert(event.keyCode)
 			switch(event.keyCode) {

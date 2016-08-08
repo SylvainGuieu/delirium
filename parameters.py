@@ -79,7 +79,7 @@ parameters = Parameters([
             ("fz","f8","mm", "wheel", 2, "vertical position of fogale sensor"),   #[mm]  #6
             ("horizontal", "f8", "mm", "wheel", 1), 
             ("vertical"  ,   "f8", "mm", "support", 2), 
-            ("phi",   "f8", "rad", "wheel", None),
+            ("phi",   "f8", "rad", "wheel", 0),
             ("theta", "f8", "rad", "wheel", 1),
             ("psi",   "f8", "rad", "wheel", 0), 
             ("x","f8","m", "wheel", None, "rail opl"),

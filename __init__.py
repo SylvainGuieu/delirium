@@ -1,12 +1,32 @@
+""" delirium is a package to explore the delirium data, to compute
+the rail deformation and corrections to apply automaticaly or in a more 
+interactive python shell.
+
+See the Readme file for more info.
+
+Quick start:
+>>> import delirium 
+The level of verbose can be set with:
+>>> delirium.set_verbose_type('EW')  #Errors and Warnings only 
+
+>>> delirium.processing.run() # to process today delirium
+>>> delirium.processing.run("2016-08-08")
+
+>>> dl1 = delirium.open_dl(2, "2016-08-08")
+>>> dl1.carriage.get("theta") # to get the theta value 
+>>> dl1.supports.get("Hcorrection) # to get the horizontal corrections
+
+"""
 from .supports import Supports
 from .delirium import Delirium, DataError, DataUtils
 from .rail import Rail
 from .sensors import Sensors, Fogale, Inclinometer
 from .carriage import Carriage    
 from .parameters import parameters
-from .dl import DelayLineState, DelayLineSates, DelayLineHysteresis
+from .dl import DelayLineState, DelayLineStates, DelayLineHysteresis
 from .log import Log, ERROR, WARNING, NOTICE, INFO, DATA
-import plots
+from . import run as processing
+from . import plots
 
 def open_dl(num, date=None, directory=None, reverse=False, file_index=-1):
     """ Return the delay line object of the last delirium found for the given date and delay line number

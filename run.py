@@ -1,3 +1,19 @@
+"""
+Provide function to do daily delirium task or recompute all the 
+monitoring value. 
+
+Bottom line:
+> run()  # to run today delirium for all DL and log all plot in wiki
+> run("2016-08-02") # run delirium of "2016-08-02"
+> run("2016-08-02", [1,3]) # run delirium of "2016-08-02" for dl 1 and 3
+> run("2015-01-22", plot=False, wiki=False) # execute delirium but do not plot or 
+                                            # log anything
+
+> reprocess_all(list_all_dates()) # reprocess everything that is recorded in disk 
+                                  # without plotting of course but it will update the
+                                  # monitoring files
+"""
+
 from .dl import DelayLineState, DelayLineHysteresis
 from .log import Log, get_buffer, clear_buffer
 from . import io
@@ -52,6 +68,7 @@ indexfile.header = localhtmldir.fpath("index.html").read
 
 
 def list_all_dates():
+    """ list all delirium dates available on the delirium machine """
     fls = dldir.ls("[0-9][0-9][0-9][0-9]-[0-9][0-9]/DL1*.dat")
     dates = [] 
     for fl in fls:
@@ -62,16 +79,32 @@ def list_all_dates():
             dates.append(date)
     return dates
 
-def reprocess_all(dates):
-    for date in dates:
-        run(date, plot=False, wiki=False)
+def reprocess_all(dates, plot=False, wiki=False):
+    """ reprocess all the delirium for the given list of dates 
+    
+    use list_all_dates() to get all the available dates from the
+    delirium machine.
 
-def read_dates(file):
-    with open(file) as f:
-        pass
+    e.i. : reprocess_all(list_all_dates())
+    """
+    for date in dates:
+        run(date, plot=plot, wiki=wiki)
+
+
+def prepare_monitoring_web_structure():
+    """ 
+    just used to prepare the monitoring directory instead of 
+    preparing all the web structure. (used when wiki=False in run)
+    """
+    global webroot, mdir, ddir, todaydir, monitoringdir
+    monitoringdir.prepare()
+
+    todaydir = io.dpath(dailydir, "dummydir")
+
 
 def prepare_web_structure(date):
-    global webroot, mdir, ddir, todaydir
+    """ set all the directory tree and files necessary for the webpage """
+    global webroot, mdir, ddir, todaydir, monitoringdir
 
     ## make the dictionary if they does not exists
     dailydir.prepare()
@@ -79,13 +112,12 @@ def prepare_web_structure(date):
 
     ## make the target today directory 
     todaydir = io.dpath(dailydir, date).prepare()
-    ## if does not exists make a dummy data.json file
+    ## if does not exists make a dummy data.json file 
+    ## so it has the creation date of now 
     todaydir.fpath("data.json").prepare()
 
     ## list all the subdirectory 
-    ## check when they have been created (mtime of data.json)
-    ## sort them and keep the last *cashSize* created or if it 
-    ## a delirium of less than maxDays  
+    ## check when they have been created (mtime of data.json)     
     mtimes = []
     for subdir in dailydir.ls("[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"):
         mtimes.append( [dailydir.getmtime(subdir+"/data.json"), datetime.date( *(int(v) for v in subdir.split("-"))) ])
@@ -96,6 +128,10 @@ def prepare_web_structure(date):
     today = datetime.date.today()
     deltatime = datetime.timedelta(maxDays)
 
+    ## select the directories to keep and the one to remove
+    # Keep directory if :
+    #    - the delirium is newer or as old as maxDays
+    #    - the delirium is older it was one of the last *cashSize* directory created
     for i, (mtime, date) in enumerate(mtimes):
         if i<cashSize:
             tokeep.append(date)
@@ -105,285 +141,434 @@ def prepare_web_structure(date):
             toremove.append(date)    
     tokeep.sort()
 
+    ##
+    # write the dates file with the keepers
     with datesfile.open("w") as g:
         g.write("dates = [")
         g.write(", ".join( '"%s"'%d for d in tokeep ))
         g.write("];")
 
+    ##
+    # remove the old stuff    
     for date in toremove:
         log.notice("removing Old Directory: %s"%date)
         dailydir.rmtree(str(date))
-       
-    #datesfile.prepare()
-
-
-    ## copy the index.html file if it does not exists
+    
+    ## copy the index.html file.
     indexfile.create()
-
-def putfile(file):
-    if hasattr(file, "put"):
-        file.put()
-
-def add_product(products, dlnum, name, kind, ptype, *args):
-    kkind = "daily_product_names" if kind is 'd' else "monitoring_product_names"
-    products.setdefault("data" , {})
-    names = products.setdefault(kkind, [])
-
-
-    products['data'].setdefault(dlnum,{}).update( {name:[ptype]+list(args)})
-    if not name in names:
-        names.append(name)
 
 
 def run(date=None, dls=range(1,7), plot=True, wiki=True):
-    global todaydir
+    """ run the delirium in a secure way 
+
+    Parameters
+    ----------
+    date: string, optional
+        the iso formated date ('yyyy-mm-dd'). 
+        take the today date is none
+    dls: list of int, optional
+        A list of DL number for wich the script will be executed
+    plot: bool or string, optional
+        can be True or "dm": everything ploted
+                "d" : only daily products are plotted 
+                "m"  : only monitoring products are plotted        
+        default is True
+    wiki: bool, optional
+        if True the plot and corection are sent to the wiki-webpage
+        otherwhise correction are just printed on stdout and plots on 
+        screen
+        default is True
+
+    """
+    global todaydir, monitoringdir
+
     if date is None:
         date = datetime.date.today().isoformat()
 
     if webroot:
-        prepare_web_structure(date)
-    today_relative_dir = "data/daily/"+date
+        if wiki:
+            prepare_web_structure(date)
+        else:
+            prepare_monitoring_web_structure()    
+    
+    if wiki:
+        products = io.Product(todaydir.fpath("data.json"), date, 
+                               dirs={"d":"data/daily/"+date, #daily sub-directory
+                                     "m":"data/monitoring"   # monitoring sub-directory
+                                     })            
+    else:
+        products = None
 
-    products = io.Product(todaydir.fpath("data.js"), date)
-
+    if plot is True:
+        plot = "dm"
+    elif not plot:
+        plot = ""          
+    
     ## get a list of direct files
     fdirect  = dldir.deliriumfiles(date, "direct")
     ## get a list of reverse file if any 
-    freverse = dldir.deliriumfiles(date, "reverse") 
-        
-    ## loop over delay lines 
+    freverse = dldir.deliriumfiles(date, "reverse")
+
     for num in dls:
         context = ("DELIRIUM", "DL%d"%num)
         clear_buffer(context[1])
         log = Log(context=context)
-        fls = fdirect.get(num, [])
 
-        
+        ## look at direct file
+        fls = fdirect.get(num, [])        
         if len(fls)>1:
             ## take the last file (they are laready sorted from older to most recent)
             file = fls[-1]
             log.warning("%d files found taking the most recent one"%(len(fls)))
         elif not fls:
-            log.error("No delirium file found for dl %d"%num)            
+            log.error("No delirium file found for dl %d"%num)  
+            if "m" in plot:
+                ## plot anyway the monitoring
+                run_monitoring_plot_dl(num, monitoringdir, products, log)
             continue
         else:
-            file = fls[-1]  
-        
-        ###
-        # The file to write 
-        cor_file        = file.replace_ext('_CORR2.txt') # correction text file              
-        wk_cor_file     = todaydir.fpath("DL%d_last_CORR.txt"%num) # correction text file in wiki
-           
+            file = fls[-1]
 
-        if DEBUG:
-            dld = DelayLineState(deliriumfile=file)
-        else:    
-            try:                       
-                dld = DelayLineState(deliriumfile=file)
-            except:
-                log.error("cannot load data of '%s'. Is data corrupted ?"%(file))
+        dld = run_init_dl(file, num, log)           
+        run_daily_correction_dl(dld, todaydir, products, log)
+        run_monitoring_dl(dld, monitoringdir, log)
+        if "d" in plot:
+            run_daily_plot_dl(dld, todaydir, products, log)
+        if "m" in plot:    
+            run_monitoring_plot_dl(num, monitoringdir, products, log)
+
+        ############
+        #
+        #  Check is there is a reverse file.
+        #    
+
+        flr = freverse.get(num, [])
+        if len(flr)>1:
+            ## take the last file (already sorted from last to newer)
+            file_r = flr[-1]
+            log.notice("%d files found taking the last one"%(len(flr)))
+        elif not flr:
+            log.warning("No reverse delirium file found for dl %d"%num)
+            if "m" in plot:
+                ## plot anyway the monitoring
+                run_monitoring_plot_hysteresis(num, monitoringdir, products, log)                
+            continue
+        else:
+            file_r = flr[-1]    
+
+        dlr = run_init_dl(file_r, num, log)         
+        hyst = run_init_hysteresis( dld, dlr, log)
+
+        run_monitoring_hysteresis(hyst, monitoringdir, log)
+        if "d" in plot:
+            run_daily_plot_hysteresis(hyst, todaydir, products, log)
+        if "m" in plot:            
+            run_monitoring_plot_hysteresis(num, monitoringdir, products, log)
                 
-                write_failure(context, file, ([cor_file, wk_cor_file] if wiki else [cor_file]))
-                if wiki:
-                    try:              
-                        log.notice("Correction file copied to %s"%wk_cor_file)
-                        products.add( num, "Corrections", "d", "txtfile",  today_relative_dir+"/"+wk_cor_file.filename)
-                    except:
-                        pass                        
-                                
-                continue
-
-        fig = [1]
-        def inc(fig):
-            fig[0] +=1
-            return fig[0]
-        
+    ##
+    # add the data.json in the wiki
+    if products:  
+        #products.flushjs() 
+        products.flushjson()      
         
 
-        ##
-        # log the corrections 
+class dummy(object):
+    pass
+
+
+def run_init_dl(file, num, log):
+    ###
+    # The correction file to write 
+    cor_file = file.replace_ext('_CORR2.txt') # correction text
+    context = log.context
+    
+    if DEBUG:
+        dld = DelayLineState(deliriumfile=file)
+    else:    
+        try:                       
+            dld = DelayLineState(deliriumfile=file)
+        except:
+            log.error("cannot load data of '%s'. Is data corrupted ?"%(file))          
+            write_failure(context, file, [cor_file])
+            dld = dummy()
+            dld.cor_file = cor_file 
+            dld.num = num
+            dld.status = False
+            return dld
+        else:
+            dld.cor_file = cor_file    
+           
+    dld.status = True
+    return dld
+
+def run_init_hysteresis(dld, dlr, log):
+    if DEBUG:
+        hyst = DelayLineHysteresis(dld, dlr)
+    else:    
+        try:
+            hyst = DelayLineHysteresis(dld, dlr)
+        except Exception as e:
+            hyst = dummy()
+            hyst.status = False
+            log.error("Cannot compute hysteresis got error: '%s'"%(e))
+            return hyst
+    hyst.status = True
+    return hyst          
+
+def run_daily_correction_dl(dld, todaydir, products, log):
+    """ put the daily correction file in delirium machine and website """
+
+    num = dld.num
+    cor_file = dld.cor_file
+    context = log.context
+
+    if not dld.status:
+        log.error("cannot compute corrections. Is data corrupted ?")
+        write_failure(context, file, [cor_file]) 
+    else:    
         if DEBUG:
             dld.rail.supports.log_corrections(filename=cor_file) 
         else:    
             try:   
                 dld.rail.supports.log_corrections(filename=cor_file) 
             except DataError:                
-                write_failure(context, file, ([cor_file, wk_cor_file] if wiki else [cor_file]))
-                try:              
-                    log.notice("Correction file copied to %s"%wk_cor_file)
-                    products.add( num, "Corrections", "d", "txtfile",  today_relative_dir+"/"+wk_cor_file.filename)
-                except:
-                    pass                
-                continue     
+                write_failure(context, file,  [cor_file])
+                dld.status = False
             except:
                 log.error("cannot compute corrections. Is data corrupted ?")
-                write_failure(context, file, ([cor_file, wk_cor_file] if wiki else [cor_file]))
-                if wiki:
-                    try:              
-                        log.notice("Correction file copied to %s"%wk_cor_file)
-                        products.add( num, "Corrections", "d", "txtfile",  today_relative_dir+"/"+wk_cor_file.filename)
-                    except:
-                        pass                                                               
-                continue    
-        # copy them to wiki  
-        if wiki:      
-            cor_file.copy(wk_cor_file)
-            log.notice("Correction file copied to %s"%wk_cor_file)
-            products.add( num, "Corrections", "d", "txtfile",  today_relative_dir+"/"+wk_cor_file.filename)
-                
-        ##              
-        # some plots
+                write_failure(context, file, [cor_file]) 
+                dld.status = False            
 
-        # Deformation/Corrections plots in both directions
-        if plot and wiki:
-            for k  in ["H", "V"]:
-                wiki_file = todaydir.fpath("DL%d_last_%s_CORR.png"%(num,k))
-                with wiki_file.open("wb") as g:  
-                    dld.rail.plot.deformations(k, figure=inc(fig), fclear=True, save=g)
-                #cor_H_fig_file.copy(wk_cor_H_fig_file) 
-                log.notice("Correction figure copied to %s"%wiki_file)       
-                products.add(num, "%s corection plot"%k, "d", "img", today_relative_dir+"/"+wiki_file.filename)
-                
-            for                 k in ["theta", "psi", "phi"]:
-                #archive = file.replace_ext('wobble_%s.png'%k)
-                wiki_file = todaydir.fpath("DL%d_last_%s_theta.png"%(num,k))
-                with wiki_file.open("wb") as g:  
-                    dld.carriage.plot.wobble_fit(k, figure=inc(fig), fclear=True, save=g)
-                #archive.copy(wiki_file)
-                log.notice("Wobble figure copied to %s"%wiki_file)        
-                products.add( num, "Wobble %s plot"%k, "d", "img", today_relative_dir+"/"+wiki_file.filename)
-                            
-                
-        ## get the wobble monitoring file 
-        wblfile = io.WobbleLog(monitoringdir.fpath("DL%d_wobble.txt"%num)).prepare()
-        ## add the wobble amplitude results at the end
-        wblfile.add_from_dl(dld)
+    if not products:
+        return 
 
-        ## get the wobble monitoring file 
-        correctionfile = io.CorrectionLog(monitoringdir.fpath("DL%d_correction.txt"%num)).prepare()
-        ## add the wobble amplitude results at the end
-        correctionfile.add_from_dl(dld)
+    num = dld.num    
+    web_cor_file = todaydir.fpath("DL%d_last_CORR.txt"%num)
+    cor_file.copy(web_cor_file)
+    log.notice("Correction file copied to %s"%web_cor_file) 
+    products.add( num, "Corrections", "d", "txtfile",  web_cor_file.filename)
 
-        if wiki and plot:
-            wdata = wblfile.read_data()
-            for k in ["theta", "psi"]:
-                ## wobble monitoring
-                wiki_file = monitoringdir.fpath("DL%d_%s_monitoring.png"%(num,k)) 
-                with wiki_file.open("wb") as g:
-                    plots.plot_history(wdata, k, num, "Wobble", fclear=True,figure=inc(fig), save=g)
-                    log.notice("Wobble monitoring updated to  %s"%wiki_file)       
-                    products.add( num, "Wobble %s monitoring plot"%k, "m", "img", "data/monitoring/"+wiki_file.filename)
-                ## wobble vs temperature
-                wiki_file = monitoringdir.fpath("DL%d_%s_temp.png"%(num,k)) 
-                with wiki_file.open("wb") as g:
-                    plots.plot_temperature(wdata, k, num, "Wobble", fclear=True,figure=inc(fig), save=g)
-                    log.notice("Wobble monitoring updated to  %s"%wiki_file)       
-                    products.add( num, "Wobble %s temp plot"%k, "m", "img", "data/monitoring/"+wiki_file.filename)
 
-            wdata = correctionfile.read_data()        
-            for k in ["Nv", "Nh"]:        
-                ## number of correction monitoring    
-                wiki_file = monitoringdir.fpath("DL%d_correction_%s_monitoring.png"%(num,k)) 
-                with wiki_file.open("wb") as g:
-                    plots.plot_history(wdata, k, num, "Corrections", unit="#", fclear=True,figure=inc(fig), save=g)
-                    log.notice("Coorection monitoring updated to  %s"%wiki_file)       
-                    products.add( num, "Correction %s monitoring plot"%k, "m", "img", "data/monitoring/"+wiki_file.filename)    
 
-                ##  number of correction vs temperature 
-                wiki_file = monitoringdir.fpath("DL%d_correction_%s_temp.png"%(num,k)) 
-                with wiki_file.open("wb") as g:
-                    plots.plot_temperature(wdata, k, num, "Corrections", unit="#", fclear=True,figure=inc(fig), save=g)
-                    log.notice("Correction vs temp updated to  %s"%wiki_file)       
-                    products.add( num, "Correction %s temp plot"%k, "m", "img", "data/monitoring/"+wiki_file.filename)                    
-                
-                    
+def run_monitoring_dl(dld, monitoringdir, log):
+    """ update the monitoring files """ 
+    if not dld.status:
+        return ;
+    num = dld.num    
+    ###
+    # update monitoring files 
+    ## get the wobble monitoring file 
+    wblfile = io.WobbleLog(monitoringdir.fpath("DL%d_wobble.txt"%num)).prepare()
+    ## add the wobble amplitude results at the end of the file
+    wblfile.add_from_dl(dld)
+    ## get the wobble monitoring file 
+    correctionfile = io.CorrectionLog(monitoringdir.fpath("DL%d_correction.txt"%num)).prepare()
+    ## add the wobble amplitude results at the end
+    correctionfile.add_from_dl(dld)
+        
+    return dld
 
-        ## take the reverse files 
-        flr = freverse.get(num, [])
-        if flr:
-            log = Log(context=("DELIRIUM", "DL%d"%num, "REVERSE"))
+def run_monitoring_hysteresis(hyst, monitoringdir, log):
+    """ update the monitoring hysteresis files """ 
+    if not hyst.status:
+        return ;
+    num = hyst.direct.num  
+     ## get the Hysteresis  monitoring file 
+    hystfile = io.HysteresisLog(monitoringdir.fpath("DL%d_hysteresis.txt"%num)).prepare()
+    ## add the wobble amplitude results 
+    hystfile.add_from_hysteresis(hyst)
+    
 
-            if len(flr)>1:
-                ## take the last file (already sorted from last to newer)
-                file_r = flr[-1]
-                log.notice("%d files found taking the last one"%(len(flr)))
-            elif not flr:
-                log.error("No reverse delirium file found for dl %d"%num)            
-                continue
-            else:
-                file_r = flr[-1]                     
-            
-            if DEBUG:
-                dlr = DelayLineState(deliriumfile=file_r)
-            else:    
-                try:                       
-                    dlr = DelayLineState(deliriumfile=file_r)
-                except DataError:
-                    log.error("Histeresis cannot be computed")
-                    continue                          
-                except:
-                    log.error("cannot load data of '%s'. Is data corrupted ?"%(file_r))
-                    log.error("Histeresis cannot be computed")
-                    continue
-            
-            if DEBUG:
-                hyst = DelayLineHysteresis(dld, dlr)
-            else:    
-                try:
-                    hyst = DelayLineHysteresis(dld, dlr)
-                except Exception as e:
-                    log.error("Cannot compute hysteresis got error: '%s'"%(e))
-                    continue    
 
-            ## get the Hysteresis  monitoring file 
-            hystfile = io.HysteresisLog(monitoringdir.fpath("DL%d_hysteresis.txt"%num)).prepare()
-            ## add the wobble amplitude results 
-            hystfile.add_from_hysteresis(hyst)
 
-            if plot and wiki:
 
-                # The daily histeresis plots 
-                for k in ["theta", "psi"]:
-                    ## histeresis plot
-                    wiki_file = todaydir.fpath("DL%d_%s_histeresis.png"%(num,k)) 
-                    with wiki_file.open("wb") as g:
-                        hyst.plot.histeresis(k,  fclear=True, figure=inc(fig), save=g)
-                        
-                        log.notice("Histeresis %s plot updated to  %s"%(k,wiki_file))
-                        products.add(num, "Hysteresis %s plot"%k, "d",  "img", today_relative_dir+"/"+wiki_file.filename)
-                            
-                
-                # monitoring plots        
-                wdata = hystfile.read_data()                       
-                for k in ["hysteresis"]: 
-                    wiki_file = monitoringdir.fpath("DL%d_%s_monitoring.png"%(num,k)) 
-                    with wiki_file.open("wb") as g:
-                        plots.plot_history(wdata, k, num, "Hysteresis", unit="arcsec", fclear=True,figure=inc(fig), save=g)
-                        log.notice("Hysteresis monitoring updated to  %s"%wiki_file)       
-                        products.add(num, " %s monitoring plot"%k, "m", "img", "data/monitoring/"+wiki_file.filename)    
-                    
-                    wiki_file = monitoringdir.fpath("DL%d_%s_temp.png"%(num,k)) 
-                    with wiki_file.open("wb") as g:
-                        plots.plot_temperature(wdata, k, num, "Hysteresis", unit="arcsec", fclear=True,figure=inc(fig), save=g)
-                        log.notice("Hysteresis vs temp updated to  %s"%wiki_file)       
-                        products.add(num, "%s temp plot"%k, "m", "img", "data/monitoring/"+wiki_file.filename)                    
-                            
-                        
+
+
+def run_daily_plot_dl(dld, todaydir, products, log):
+    """ 
+    Plot all the daily plot in the website or on screen if products is None 
+    """
+    if not dld.status:
+        return 
+    fig = [dld.num*10]
+    def inc(fig):
+        fig[0] +=1
+        return fig[0]
+
+        
+    num = dld.num    
+    ### Horizontal and Vertical Corrections 
+    for k  in ["H", "V"]:
+        if products:
+            pfile = todaydir.fpath("DL%d_last_%s_CORR.png"%(num,k))
+            with pfile.open("wb") as g:  
+                dld.rail.plot.deformations(k, figure=inc(fig), fclear=True, save=g)
+            log.notice("Correction figure copied to %s"%pfile)
+            products.add(num, "%s corection plot"%k, "d", "img", pfile.filename)
         else:
-            log.warning("No reverse file, isteresis not computed")
-            ### just add the previous histeresis plot in product
-            if wiki:
-                for k in ["hysteresis"]:
-                    wiki_file = monitoringdir.fpath("DL%d_%s_monitoring.png"%(num,k)) 
-                    products.add(num, "%s monitoring plot"%k, "m", "img", "data/monitoring/"+wiki_file.filename)                    
-                    wiki_file = monitoringdir.fpath("DL%d_%s_temp.png"%(num,k)) 
-                    products.add(num, "%s temp plot"%k, "m", "img", "data/monitoring/"+wiki_file.filename)    
+            dld.rail.plot.deformations(k, figure=inc(fig), fclear=True, show=True)    
+    
 
-        ##
-        # add the data.json in the wiki
-        if wiki:  
-            #products.flushjs() 
-            products.flushjson()           
+    for k in ["theta", "psi", "phi"]:
+        if products:                            
+            pfile = todaydir.fpath("DL%d_last_%s_theta.png"%(num,k))
+            with pfile.open("wb") as g:  
+                dld.carriage.plot.wobble_fit(k, figure=inc(fig), fclear=True, save=g)
+            #archive.copy(pfile)
+            log.notice("Wobble figure copied to %s"%pfile)        
+            products.add( num, "Wobble %s plot"%k, "d", "img", pfile.filename)
+        else:
+            dld.carriage.plot.wobble_fit(k, figure=inc(fig), fclear=True, show=True)
+    
+def run_daily_plot_hysteresis(hyst, todaydir, products, log):
+    """ 
+    Plot all the daily plot related to hysteresis in the website or on screen if products is None 
+    """  
+    if not hyst.status:
+        return 
+            
+    num = hyst.direct.num
+    fig = [num*10+100]
+    def inc(fig):
+        fig[0] +=1
+        return fig[0]
+        
+    for k in ["theta", "psi"]:
+        ## histeresis plot
+        if products:
+            pfile = todaydir.fpath("DL%d_%s_histeresis.png"%(num,k))
+            with pfile.open("wb") as g:
+                hyst.plot.histeresis(k, fclear=True, figure=inc(fig), save=g)
+                
+                log.notice("Histeresis %s plot updated to  %s"%(k,pfile))
+                products.add(num, "Hysteresis %s plot"%k, "d",  "img", pfile.filename)
+        else:
+            hyst.plot.histeresis(k, fclear=True, figure=inc(fig), show=True)
+
+
+def run_monitoring_plot_dl(num, monitoringdir, products, log):
+
+    fig = [num*10+200]
+    def inc(fig):
+        fig[0] +=1
+        return fig[0]
+            
+    
+    ## get the wobble monitoring file 
+    wblfile = io.WobbleLog(monitoringdir.fpath("DL%d_wobble.txt"%num)).prepare()
+    # get the data
+    wdata = wblfile.read_data()
+    for k in ["theta", "psi"]:
+        if products:
+            web_file = monitoringdir.fpath("DL%d_%s_monitoring.png"%(num,k)) 
+            with web_file.open("wb") as g:
+                plots.plot_history(wdata, k, num, "Wobble", fclear=True, figure=inc(fig), save=g)
+                log.notice("Wobble monitoring updated to  %s"%web_file)       
+                products.add( num, "Wobble %s monitoring plot"%k, "m", "img", web_file.filename)
+        else:
+            plots.plot_history(wdata, k, num, "Wobble", fclear=True, figure=inc(fig), show=True)        
+
+        if products:
+            web_file = monitoringdir.fpath("DL%d_%s_temp.png"%(num,k)) 
+            with web_file.open("wb") as g:
+                plots.plot_temperature(wdata, k, num, "Wobble", fclear=True,figure=inc(fig), save=g)
+                log.notice("Wobble monitoring updated to  %s"%web_file)       
+                products.add( num, "Wobble %s temp plot"%k, "m", "img", web_file.filename)
+        else:
+            plots.plot_temperature(wdata, k, num, "Wobble", fclear=True,figure=inc(fig), show=True)
+    
+    ## get the correctionfile monitoring (number of correction per day)
+    correctionfile = io.CorrectionLog(monitoringdir.fpath("DL%d_correction.txt"%num)).prepare()
+
+    ## read the correction data
+    wdata = correctionfile.read_data()        
+    for k in ["Nv", "Nh"]:  
+        if products:  
+                web_file = monitoringdir.fpath("DL%d_correction_%s_monitoring.png"%(num,k)) 
+                with web_file.open("wb") as g:
+                    plots.plot_history(wdata, k, num, "Corrections", unit="#", fclear=True,figure=inc(fig), save=g)
+                    log.notice("Coorection monitoring updated to  %s"%web_file)       
+                    products.add( num, "Correction %s monitoring plot"%k, "m", "img", web_file.filename)    
+        else:
+            plots.plot_history(wdata, k, num, "Corrections", unit="#", fclear=True,figure=inc(fig), show=True)
+
+        if products:                
+                ##  number of correction vs temperature 
+                web_file = monitoringdir.fpath("DL%d_correction_%s_temp.png"%(num,k)) 
+                with web_file.open("wb") as g:
+                    plots.plot_temperature(wdata, k, num, "Corrections", unit="#", fclear=True,figure=inc(fig), save=g)
+                    log.notice("Correction vs temp updated to  %s"%web_file)       
+                    products.add( num, "Correction %s temp plot"%k, "m", "img", web_file.filename)                    
+        else:
+            plots.plot_temperature(wdata, k, num, "Corrections", unit="#", fclear=True,figure=inc(fig), show=True)        
+
+def run_monitoring_plot_hysteresis(num, monitoringdir, products, log):
+
+    fig = [num*10+300]
+    def inc(fig):
+        fig[0] +=1
+        return fig[0]
+    
+
+    
+    ## get the Hysteresis  monitoring file 
+    hystfile = io.HysteresisLog(monitoringdir.fpath("DL%d_hysteresis.txt"%num)).prepare()
+    # get the data
+    wdata = hystfile.read_data()
+    for k in ["hysteresis"]: 
+        if products:
+            web_file = monitoringdir.fpath("DL%d_%s_monitoring.png"%(num,k)) 
+            with web_file.open("wb") as g:
+                plots.plot_history(wdata, k, num, "Hysteresis", unit="arcsec", fclear=True,figure=inc(fig), save=g)
+                log.notice("Hysteresis monitoring updated to  %s"%web_file)       
+                products.add(num, " %s monitoring plot"%k, "m", "img", web_file.filename)
+        else:
+            plots.plot_history(wdata, k, num, "Hysteresis", unit="arcsec", fclear=True,figure=inc(fig), show=True)            
+            
+        if products:    
+            web_file = monitoringdir.fpath("DL%d_%s_temp.png"%(num,k)) 
+            with web_file.open("wb") as g:
+                plots.plot_temperature(wdata, k, num, "Hysteresis", unit="arcsec", fclear=True,figure=inc(fig), save=g)
+                log.notice("Hysteresis vs temp updated to  %s"%web_file)       
+                products.add(num, "%s temp plot"%k, "m", "img", web_file.filename)
+        else:
+            plots.plot_temperature(wdata, k, num, "Hysteresis", unit="arcsec", fclear=True, figure=inc(fig), show=True)            
+
+
+
+def run_computing(date=None, dls=range(1,7)):
+
+    ## get a list of direct files
+    fdirect  = dldir.deliriumfiles(date, "direct")
+    ## get a list of reverse file if any 
+    freverse = dldir.deliriumfiles(date, "reverse")
+
+    ## status of computation for each dls True for succsess
+    status = {} 
+    for num in dls:
+        context = ("DELIRIUM", "DL%d"%num)
+        clear_buffer(context[1])
+        log = Log(context=context)
+        fls = fdirect.get(num, [])
+        if len(fls)>1:
+            ## take the last file (they are laready sorted from older to most recent)
+            file = fls[-1]
+            log.warning("%d files found taking the most recent one"%(len(fls)))
+        elif not fls:
+            log.error("No delirium file found for dl %d"%num)
+            status[num] = False            
+            continue
+        else:
+            file = fls[-1]  
+
+       
+        
+
+                
+                
+
+
+
 
 def write_failure(context, origfile, files):
     for file in files:

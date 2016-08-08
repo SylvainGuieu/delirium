@@ -195,7 +195,7 @@ class DelayLineState(object, DataUtils):
         return self.rail.supports    
     
 
-class DelayLineSates(object):
+class DelayLineStates(object):
     """ A list of DelayLineState 
 
     Can contain any state (any dl, at any moments)    
@@ -221,7 +221,7 @@ class DelayLineSates(object):
         dlstate : DelayLineState
         """
         if not isinstance(dlstate, DelayLineState):
-            raise ValueError("expecting a DelayLineSatet object got a %s"%type(state))        
+            raise ValueError("expecting a DelayLineStatet object got a %s"%type(state))        
         self.states.append(dlstate)
     
     def add_delirium(self, filename): 
@@ -305,28 +305,28 @@ class DelayLineSates(object):
             return output        
     get.__doc__ = DelayLineState.__doc__                
 
-class DelayLine(DelayLineSates):
+class DelayLine(DelayLineStates):
     """ DelayLine object with several states for monitoring purpose 
 
     All DelayLineState child object must be of the same delay line number
     """
     def __init__(self, num, states=[]):
         self.num = num
-        DelayLineSates.__init__(self, states)
+        DelayLineStates.__init__(self, states)
 
     def add_state(self, dlstate):
         """ Add a DelayLineState object to the delayline """
         if not isinstance(dlstate, DelayLineState):
-            raise ValueError("expecting a DelayLineSatet object got a %s"%type(state))
+            raise ValueError("expecting a DelayLineStatet object got a %s"%type(state))
         if dlstate.num != self.num:
             raise ValueError("expecting a delay line state of delay line %d, got #%s"%(self.num, dlstate.num))            
-        DelayLineSates.add_state(self, dlstate)
+        DelayLineStates.add_state(self, dlstate)
 
     def add_delirium(self, filename):
         dlnum = _path2dl(filename)   
         if dlnum != self.num:
             raise ValueError("expecting a delirium file of delay line %d, got #%s"%(self.num, dlnum))           
-        DelayLineSates.add_delirium(self, filename)                
+        DelayLineStates.add_delirium(self, filename)                
         
 class DelayLineHysteresis(DataUtils, DelayLine):
     """ DelayLine object with 2 states reverse and direct 
@@ -362,14 +362,14 @@ class DelayLineHysteresis(DataUtils, DelayLine):
 
         self.compute_histeresis()
 
-        log = Log(context=("DELIRIUM", "DL%d"%self.num))
+        self.log = Log(context=("DELIRIUM", "DL%d"%self.num))
     @property
     def direct(self):
-        """ The direct DelayLineSate """
+        """ The direct DelayLineState """
         return self[0]
     @property
     def reverse(self):
-        """ The reverse DelayLineSate """
+        """ The reverse DelayLineState """
         return self[1]
     
     def get_id(self):

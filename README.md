@@ -11,11 +11,30 @@ Data are written in a ascii regular table, opl  in meter and Fogale positions Y 
 
 The string sustained only on both side of the tunnel, meanings that it has a parabolic shape in the vertical direction and is lineary shift in horizontal. The Fogale are not exactly in horizontal/vertical position, so there are residuals vertical parabola in the horizontal data and vis versa. The data is reprojected to make the detector straight. The reprojection matrix is unique for each carriage and is set in the `sensors.py` file. 
 
-## Code
+## Code Structure 
 
 The code has been rewritten from the previous Matlab script. The matlab script was written sequentially, step by step and grew anarchically over the years.  Instead it has been rewritten with Python in a object oriented fashion. This in order to make it clearer and to allow the code to evolve safely. 
 
 The defined Python objets are logical and correspond to the physical components of the delay line :
+
+```
+DelayLine
+       |
+       +-- n DelayLineState (2 for hysteresis)
+                 |
+                 +-- 1 Delirium (file) >.....   
+                 |                          .
+                 +-- 1 Carriage             .        >..........
+                 |        |                 .                  .
+                 |        +-- Sensors   <....                  .
+                 |              |                              .
+                 |              + 2 Fogale                     .
+                 |              + 1 Inclinometer               .
+                 |                                             .
+                 +-- 1 Rails                        <...........  
+                        |
+                        + 1 Supports 
+```
 
     DelayLineState (represent a state of a delayline computed from a delirium file). 
         1 Carriage. (Contain carriage coordinate convention function)
@@ -31,9 +50,12 @@ The defined Python objets are logical and correspond to the physical components 
 
 Each object is defined in its own file. Some other files (sub modules) are also defined :
 
+- `parameters.py` define parameters names and descriptions
 - `computing.py` contain common functions 
 - `log.py`  handle the log stdout 
 - `io.py` input output, functions to find, list and open data files remotely or locally.
+- `wobblefit.py` define the class fitting for wobble
+- `plots.py` All the plots are written here
 - `run.py` handle the automatics pcomputation, plots and webpage creation.
 
 
@@ -97,15 +119,19 @@ Notes: the parameters fitting degrees can be changed in the `parameters.py` file
 
 Configuration: the configuration are at the begining of the class definition, they are phisical dimension and placement of the carriage coponant (*for historical reasons there is a (m,mm) mix in units between*):
 
-- `.wheel_distance`  = 2.25 # physical separation between wheels [m]
-- `.sensor_distance` = 1.7  # physical separation between sensors [m]
-- `.wheel_radius`    = 0.196 # [m] exact design value = 195.81 mm
-- `.rail_distance`   = 0.520  # separation between rails in y direction [m]
-- `.Fend` = [ 800,92,48] # x,y,z end fogale position from carriage center [mm]
-- `.Fctr` = [-900,92,48] # x,y,z center fogale position from carriage center [mm]
-- `.Wend` = [ 1000*wheel_distance/2.,0,0] # Positions of end wheel contact point [mm]
-- `.Wctr` = [ 1000*wheel_distance/2.,0,0] # Positions of center wheel contact point [mm]
-
+```
+|-----------------|-------------------------------|------|---------------------------------------------------|
+|       var       |         default value         | unit |                       descr                       |
+|=================|===============================|======|===================================================|
+| wheel_distance  | 2.25                          | m    | physical separation between wheels                |
+| sensor_distance | 1.7                           | m    | physical separation between sensors               |
+| wheel_radius    | 0.196                         | m    | exact design value 195.81                         |
+| rail_distance   | 0.520                         | m    | separation between rails in y direction           |
+| Fend            | [ 800,92,48]                  | mm   | x,y,z  end fogale position from carriage center   |
+| Fctr            | [-900,92,48]                  | mm   | x,y,z center fogale position from carriage center |
+| Wend            | [ 1000*wheel_distance/2.,0,0] | mm   | Positions of end wheel contact point              |
+| Wctr            | [ 1000*wheel_distance/2.,0,0] | mm   | Positions of center wheel contact point           |
+```
 ### Rail
 
 The rail deformation state is computed from the carriage attitude positions.
@@ -157,7 +183,6 @@ And the following configuration parameters:
 | removeCarriageLowOrder | True          |      | remove low order of relevant carriage parameters    |
 ```
 
-
 ### Supports 
 
 The supports object contain the correction to apply to each support to make the rail straight. These corrections are computed from a Rail object and rail/support interaction matrix (from a static fits file).
@@ -169,6 +194,7 @@ Supports has the following array values:
 
 And the following configuration parameters:
 
+```
 |---------------------|---------------|------|-------------------------------------------------------------|
 |         var         | default value | unit |                            descr                            |
 |=====================|===============|======|=============================================================|
@@ -186,15 +212,7 @@ And the following configuration parameters:
 | filterRailWobble    | False         | opl  | normally it is false since wobble has been corrected before |
 |                     |               |      | computing the rail deformation                              |
 |---------------------|---------------|------|-------------------------------------------------------------|
-
-
-
-
-- `.correction_treshold` = 0.007 # [mm] threshold for which the corrections will be logged 
-- `.maxcorwarning` = 0.05 [mm] # print a warning if some correction above this
-- `.removeRailLowOrder` = True # remove low orders on rail before computing correction
-- `railLowOrderRange` = "good" # tuple(min,max) the low order fit range (in opl). This can be a string, the correspondence between string and range is defined in the DelayLineState class definition in `dl.py` file"
-- `.filterRailWobble` = False # normally it is false since wobble has been corrected before computing the rail deformation
+```
 
 
 

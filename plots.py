@@ -13,7 +13,7 @@ from .delirium import Delirium
 from .rail import Rail
 from .sensors import Sensors, Inclinometer, Fogale
 from .carriage import Carriage
-from .dl import DelayLineSates,DelayLineState, DelayLineHysteresis, DelayLine     
+from .dl import DelayLineStates,DelayLineState, DelayLineHysteresis, DelayLine     
 import os
 from .parameters import parameters
 from . import computing
@@ -372,7 +372,8 @@ class PlotFit:
 
         obj = self.data
 
-        yfiltered, extras = obj.get(key, filterWobble=True, period=period, removeLowOrder=True, wobbleFitrange=fitrange,  arcsec=arcsec, extras=True, wobbleOrder=order)
+        yfiltered, extras = obj.get(key, filterWobble=True, period=period, removeLowOrder=True, 
+            wobbleFitrange=fitrange,  arcsec=arcsec, extras=True, wobbleOrder=order)
         
         fit = extras['wobble_fit']
 
@@ -380,9 +381,11 @@ class PlotFit:
         if not removeLowOrder:
             yfiltered2 = obj.get(key, filterWobble=True, removeLowOrder=False, arcsec=arcsec)
         else:
-            yfiltered2 = yfiltered 
+            yfiltered2 = yfiltered
 
         yraw = obj.get(key, removeLowOrder=removeLowOrder, arcsec=arcsec)
+
+
 
         param = obj.params.get(key)
         period = param.period if period is None else period
