@@ -97,20 +97,20 @@ Notes: the parameters fitting degrees can be changed in the `parameters.py` file
 
 Configuration: the configuration are at the begining of the class definition, they are phisical dimension and placement of the carriage coponant (*for historical reasons there is a (m,mm) mix in units between*):
 
-- `wheel_distance`  = 2.25 # physical separation between wheels [m]
-- `sensor_distance` = 1.7  # physical separation between sensors [m]
-- `wheel_radius`    = 0.196 # [m] exact design value = 195.81 mm
-- `rail_distance`   = 0.520  # separation between rails [m]
-- `Fend` = [ 800,92,48] # x,y,z end fogale position from carriage center [mm]
-- `Fctr` = [-900,92,48] # x,y,z center fogale position from carriage center [mm]
-- `Wend` = [ 1000*wheel_distance/2.,0,0] # Positions of end wheel contact point [mm]
-- `Wctr` = [ 1000*wheel_distance/2.,0,0] # Positions of center wheel contact point [mm]
+- `.wheel_distance`  = 2.25 # physical separation between wheels [m]
+- `.sensor_distance` = 1.7  # physical separation between sensors [m]
+- `.wheel_radius`    = 0.196 # [m] exact design value = 195.81 mm
+- `.rail_distance`   = 0.520  # separation between rails in y direction [m]
+- `.Fend` = [ 800,92,48] # x,y,z end fogale position from carriage center [mm]
+- `.Fctr` = [-900,92,48] # x,y,z center fogale position from carriage center [mm]
+- `.Wend` = [ 1000*wheel_distance/2.,0,0] # Positions of end wheel contact point [mm]
+- `.Wctr` = [ 1000*wheel_distance/2.,0,0] # Positions of center wheel contact point [mm]
 
 ### Rail
 
 The rail deformation state is computed from the carriage attitude positions.
 
-With the attitude coordinate in hand, the x (opl), y and z coordinates of the guiding rail is computed by projecting the carriage wheel contact points. That lead us to two measurements (3 wheels), the average of the two (independent) measurements at same opl is taken.
+With the attitude coordinate in hand, the x (opl), y and z coordinates of the guiding rail is computed by projecting the carriage wheel contact points. That lead us to two measurements (2) wheels), the average of the two independent measurements is taken for each opl.
 
 The following transformation matrix are used (defined in `carriage.py`) :
   
@@ -132,12 +132,12 @@ The following transformation matrix are used (defined in `carriage.py`) :
                                               |theta|
                                               | psi |                                                
 
-*Note here the sign -1 for the y axis which is the opposite of Haxis*
+*Note here the sign -1 for the y axis which is in the opposite direction of Haxis (see carriage figure above)*
 
 However before computing the wheel contact points two things are made:
 
-- the wobble is filtered for each parameters that can have a wobble period. The period for each parameters is defined in `parameters.py`. The period can be an intelligible string `"wheel"` (wheel perimeter x 2) or `"supports"` (support distance x 2) or a float expressed in opl (physical distance x 2). Can be switched on/off with the `filterCarriageWobble` in the rail class definition (in `rail.py`)
-- the low order of the carriage attitude is removed for some parameters in order to eliminate the carriage global tilts. Can be switched on/off with the `removeCarriageLowOrder` in the rail class definition (in `rail.py`)
+- the wobble is filtered for each relevant parameters that can have a wobble period. The period for each parameters is defined in `parameters.py`. The period can be an intelligible string `"wheel"` (wheel perimeter x 2) or `"supports"` (support distance x 2) or a float expressed in opl (physical distance x 2). The wobble filtering can be switched on/off with the `filterCarriageWobble` in the rail class definition (in `rail.py`)
+- the low order of the carriage attitude is removed for some parameters in order to eliminate the carriage global tilts. Again order of the fits parameter is determined in `parameters.py`. Low order removal can be switched on/off with the `removeCarriageLowOrder` in the rail class definition (in `rail.py`)
 
 Rail has the following array values :
 - `x [opl]`
@@ -145,10 +145,18 @@ Rail has the following array values :
 - `z [mm]`  deformation along z axis
 
 And the following configuration parameters:
-- `.support_sep` = 0.75 # separation between support in physical distances [m]
-- `.support_offset` = 5.69/2. # position of the first support in physical distances [m]
-- `.filterCarriageWobble` = True # filter the wobble on relevant carriage parameters
-- `.removeCarriageLowOrder` = True # remove low order of relevant carriage parameters
+
+```
+|------------------------|---------------|------|-----------------------------------------------------|
+|          var           | default value | unit |                        descr                        |
+|========================|===============|======|=====================================================|
+| support_sep            | 0.75          | m    | separation between support in physical distances    |
+|------------------------|---------------|------|-----------------------------------------------------|
+| support_offset         | 5.69/2.       | m    | position of the first support in physical distances |
+| filterCarriageWobble   | True          |      | filter the wobble on relevant carriage parameters   |
+| removeCarriageLowOrder | True          |      | remove low order of relevant carriage parameters    |
+```
+
 
 ### Supports 
 
@@ -160,11 +168,33 @@ Supports has the following array values:
 - `Vcorrection [mm]` Correction to apply in the Vertical direction
 
 And the following configuration parameters:
+
+|---------------------|---------------|------|-------------------------------------------------------------|
+|         var         | default value | unit |                            descr                            |
+|=====================|===============|======|=============================================================|
+| correction_treshold | 0.007         | mm   | threshold for which the corrections will be logged          |
+|---------------------|---------------|------|-------------------------------------------------------------|
+| maxcorwarning       | 0.05          | mm   | print a warning if some correction above this               |
+|---------------------|---------------|------|-------------------------------------------------------------|
+| removeRailLowOrder  | True          |      | remove low orders on rail before computing correction       |
+|---------------------|---------------|------|-------------------------------------------------------------|
+| railLowOrderRange   | "good"        | opl  | tuple(min,max) the low order fit range (in opl).            |
+|                     |               |      | This can be a string, the correspondence between            |
+|                     |               |      | string and range is defined in the DelayLineState           |
+|                     |               |      | class definition in `dl.py` file"                           |
+|---------------------|---------------|------|-------------------------------------------------------------|
+| filterRailWobble    | False         | opl  | normally it is false since wobble has been corrected before |
+|                     |               |      | computing the rail deformation                              |
+|---------------------|---------------|------|-------------------------------------------------------------|
+
+
+
+
 - `.correction_treshold` = 0.007 # [mm] threshold for which the corrections will be logged 
 - `.maxcorwarning` = 0.05 [mm] # print a warning if some correction above this
 - `.removeRailLowOrder` = True # remove low orders on rail before computing correction
 - `railLowOrderRange` = "good" # tuple(min,max) the low order fit range (in opl). This can be a string, the correspondence between string and range is defined in the DelayLineState class definition in `dl.py` file"
-- `filterRailWobble` = False # normally it is false since wobble has been corrected before computing the rail deformation
+- `.filterRailWobble` = False # normally it is false since wobble has been corrected before computing the rail deformation
 
 
 
