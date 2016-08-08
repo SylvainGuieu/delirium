@@ -162,9 +162,9 @@ class PlotSupports(PlotCollection):
     def deformations(self, direction, axes=None, figure=None, aclear=False, fclear=False,show=False,save=False, unit="micron",  treshold=None, **kwargs):
         axes, finalyse = self.axes(axes,figure, aclear, fclear,show,save)
         direction = direction.upper()
-        if direction in ["Z","V", "VERTICAL"]:
+        if direction in ["Z","V", "VERTICAL", "Vcorrection"]:
             drail, dsupport = "z", "Vcorrection"
-        elif direction in ["Y","H", "HORIZONTAL"]:
+        elif direction in ["Y","H", "HORIZONTAL", "Hcorrection"]:
             drail, dsupport = "y", "Hcorrection"    
 
         supports = self.data
@@ -432,9 +432,9 @@ class PlotRail(PlotCollection, PlotFit,PlotParam):
     def deformations(self, direction, treshold=None, axes=None, figure=None, aclear=False, fclear=False, show=False,save=False, unit="micron", **kwargs):
         axes, finalyse = self.axes(axes,figure, aclear, fclear,show, save)
         direction = direction.upper()
-        if direction in ["Z","V", "VERTICAL"]:
+        if direction in ["Z","V", "VERTICAL", "Vcorrection"]:
             drail, dsupport = "z", "Vcorrection"
-        elif direction in ["Y","H", "HORIZONTAL"]:
+        elif direction in ["Y","H", "HORIZONTAL", "Hcorrection"]:
             drail, dsupport = "y", "Hcorrection"    
 
         rail = self.data

@@ -100,7 +100,7 @@ class DelayLineState(object, DataUtils):
             if period == "support":
                 ## Not sure where this 1.07 is comming from 
                 ## keep for now to have the same behavior than matplotlib
-                return Rail.support_sep#/1.07 # Distance between rail supports (x 2)            
+                return Rail.support_sep*2 #/1.07 # Distance between rail supports (x 2)            
 
             raise KeyError("period name must be 'wheel' or 'support' got '%s'"%period)    
 

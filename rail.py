@@ -7,13 +7,13 @@ import numpy as np
 class Rail(object, DataUtils):    
     ## 
     #
-    # support number = support_sep*opl + support_offset
+    # support number = support_sep*2*opl + support_offset*2
     # support number start from 1 !!!
-    support_sep    =  0.75*2  # in opl [m]
-    support_offset =  5.69     # in opl [m]
+    support_sep    =  0.75    # in physical [m]
+    support_offset =  5.69/2. # in physical [m]
 
     ## filter carriage wobble before
-    ## reconstructing the rail 
+    ## reconstructing the rail, normaly True
     filterCarriageWobble = True
 
     ## remove carriage low order before 
@@ -81,7 +81,7 @@ class Rail(object, DataUtils):
         There is no check of physical values boundaries           
         """
         support = np.asarray(support)
-        opl = support*self.support_sep-self.support_offset
+        opl = support*(self.support_sep*2)-(self.support_offset*2)
         return  opl
 
     def opl2support(self, opl):
@@ -104,7 +104,7 @@ class Rail(object, DataUtils):
         There is no check of physical values boundaries
         """
         opl = np.asarray(opl)
-        support = np.round ((opl+self.support_offset)/self.support_sep)
+        support = np.round ((opl+(self.support_offset*2))/(self.support_sep*2))
         return support.astype(int)
     
 

@@ -304,7 +304,7 @@ Front View
         ## Old way, the low order are remove independantly to ctr and end sensors 
         ## That cause problems for the histeresis, because histeresis information 
         ## are contained inside the loworder differences between ctr and end  for theta and psi        
-        D = self.sensors.get( self.D2A_keys[0], removeLowOrder=removeLowOrder, filterWobble=filterWobble)                
+        # D = self.sensors.get( self.D2A_keys[0], removeLowOrder=removeLowOrder, filterWobble=filterWobble)                
         
         ## New way calculate a the string model on the ctr sensor and apply that model to 
         ## the end (sensors) with the separation offset

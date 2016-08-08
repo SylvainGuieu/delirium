@@ -65,18 +65,20 @@ class Parameters(list):
 
 
 parameters = Parameters([
-            ("time","f8","hhmmss.s", None, None, "time stamp"), #[hhmmss.s] 
-            ("opl", "f8","m", None, None, "opl  distance"), #[m]   #1
-            ("doms","f8","mm", "wheel", 2), #[mm]     
-            ("incl","f8","rad","wheel", None, "inclination"), #[rad] #2
-            ("yctr","f8","mm", "wheel", 1, "horizontal position of center sensor"), #[mm]  #3
-            ("zctr","f8","mm", "support", 2, "vertical position of center sensor"), #[mm]  #4 
-            ("yend","f8","mm", "wheel", 1, "horizontal position of end sensor"), #[mm]  #5 
-            ("zend","f8","mm", "wheel", 2, "vertical position of end sensor"),   #[mm]  #6
+            #name, format, unit, typical period, fitting degree, description 
+
+            ("time",  "f8", "hhmmss.s", None,    None, "time stamp"), #[hhmmss.s] 
+            ("opl" ,  "f8", "m",        None,    None, "opl  distance"), #[m]   #1
+            ("doms",  "f8", "mm",       "wheel", 2), #[mm]     
+            ("incl",  "f8", "rad",      "wheel", None, "inclination"), #[rad] #2
+            ("yctr",  "f8", "mm",       "wheel",  1, "horizontal position of center sensor"), #[mm]  #3
+            ("zctr",  "f8", "mm",       "support",2, "vertical position of center sensor"), #[mm]  #4 
+            ("yend",  "f8", "mm",       "wheel",  1, "horizontal position of end sensor"), #[mm]  #5 
+            ("zend",  "f8", "mm",       "wheel",  2, "vertical position of end sensor"),   #[mm]  #6
             ("fy","f8","mm", "wheel", 1, "horizontal position of fogale sensor"), #[mm]  #5 
             ("fz","f8","mm", "wheel", 2, "vertical position of fogale sensor"),   #[mm]  #6
             ("horizontal", "f8", "mm", "wheel", 1), 
-            ("vertical",   "f8", "mm", "support", 2), 
+            ("vertical"  ,   "f8", "mm", "support", 2), 
             ("phi",   "f8", "rad", "wheel", None),
             ("theta", "f8", "rad", "wheel", 1),
             ("psi",   "f8", "rad", "wheel", 0), 
@@ -87,8 +89,8 @@ parameters = Parameters([
             #("y","f8","mm","wheel", 1, "rail deformation in horizontal"),
             #("z","f8","mm","wheel", 2, "rail deformation in vertical"),
             ("supports","i8", "num", None, None, "Support number"),
-            ("H","f8","mm", "support", None, "support horizontal deformation"),
-            ("V","f8","mm", "support", None, "support vertical deformation"), 
+            #("H","f8","mm", "support", None, "support horizontal deformation"), # not used !
+            #("V","f8","mm", "support", None, "support vertical deformation"),   # not used
             ("Hcorrection", "f8","mm", "support", None, "support horizontal correction"),
             ("Vcorrection", "f8","mm", "support", None, "support vertical correction"),
             ## histerezis parameter 

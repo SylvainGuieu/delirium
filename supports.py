@@ -49,7 +49,7 @@ class Supports(object, DataUtils):
     filterRailWobble = False
 
 
-    params = parameters.restrict("supports", "H", "V", "Hcorrection", "Vcorrection")  
+    params = parameters.restrict("supports", "Hcorrection", "Vcorrection")  
     def __init__(self, rail):        
         self.num = rail.num
         if rail.carriage:
@@ -78,10 +78,9 @@ class Supports(object, DataUtils):
         # set a correction array with all to zero 
         self.data = np.recarray(CM_support.shape,dtype=self.params.get_dtypes())
         self.data["supports"] = CM_support.astype(int)
-        self.data["H"] = np.zeros(CM_support.shape, dtype=float)
-        self.data["V"] = np.zeros(CM_support.shape, dtype=float)
-        self.data["Hcorrection"] = self.data["H"].copy()
-        self.data["Vcorrection"] = self.data["V"].copy()
+        self.data["Hcorrection"] = np.zeros(CM_support.shape, dtype=float)
+        self.data["Vcorrection"] = np.zeros(CM_support.shape, dtype=float)
+        
 
 
 
@@ -121,13 +120,9 @@ class Supports(object, DataUtils):
         xm = delirium.index2opl(delirium.opl2index(CM_opl))
         mask = np.in1d(xr, xm)        
 
-        self.data["H"] =  -np.asarray(np.matrix(CM_H)*np.matrix(y[mask]).T).squeeze()
-        self.data["V"] =  -np.asarray(np.matrix(CM_V)*np.matrix(z[mask]).T).squeeze()
-        
-        ## Note the manus sign for H
-        self.data["Hcorrection"] =    self.data["H"]
-        self.data["Vcorrection"] =    self.data["V"]
-
+        self.data["Hcorrection"] =  -np.asarray(np.matrix(CM_H)*np.matrix(y[mask]).T).squeeze()
+        self.data["Vcorrection"] =  -np.asarray(np.matrix(CM_V)*np.matrix(z[mask]).T).squeeze()
+                       
         self.data["supports"] = CM_support.astype(int)
         
 
@@ -167,8 +162,8 @@ class Supports(object, DataUtils):
         """
         self.log.notice("Applying treshold %f to rail data "%self.correction_treshold, 3)
         treshold = self.correction_treshold
-        self.Hcorrection[ np.abs(self.H)<treshold  ] = 0.0
-        self.Vcorrection[ np.abs(self.V)<treshold  ] = 0.0
+        self.Hcorrection[ np.abs(self.Hcorrection)<treshold  ] = 0.0
+        self.Vcorrection[ np.abs(self.Vcorrection)<treshold  ] = 0.0
         
 
     def get_corrections(self, supports=None, unit="micron", treshold=None):
