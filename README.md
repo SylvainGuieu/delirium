@@ -3,13 +3,13 @@ README.md
 # Delay lines Delirium script
 
 ## Data 
-The delirium data are taken every day by moving the delay line every day, step by step, and measuring the position in space of the carriage thanks to 2 Fogale, no contact detectors, and an inclinometer. The measures are taken every 0.375 m opl (opl = 2 physical distance). Every month also data are taken back and forward to check the hysteresis
+The delirium data are taken every day by moving the delay line, step by step, and measuring the position in space of the carriage thanks to 2 Fogales (no contact, detectors) and an inclinometer. The measures are taken every 0.375 m opl (opl = 2 X physical distance). Every wwednesday also data are taken back and forward to check the hysteresis.
 
-Data are written in a ascii regular table, opl  in meter and Fogale positions Y and Z in mm, the inclinometer is in radian. The two Fogale detectors are named "center" (for the one closer to the tunnel center ) and "end" (for the one closer to the end of the tunnel). 
+Data are written in a ascii regular table, opl  in meter and Fogale positions Y and Z in mm, the inclinometer is in radian. The two Fogale detectors are named "center" (for the one closest to the tunnel center ) and "end" (for the one closest to the tunnel extremities). 
 
 ### Fogale WPS correction 
 
-The string attached on both side of the tunnel is free all the way, that means it has a parabolic shape in the vertical direction and is lineary shift in horizontal. The Fogale are not exactly in horizontal/vertical position, so there are residuals vertical parabola in the horizontal data and vis versa. The data is reprojected to make the detector straight. The reprojection matrix is unique for each carriage and is in the sensors.py file. 
+The string sustained only on both side of the tunnel, meanings that it has a parabolic shape in the vertical direction and is lineary shift in horizontal. The Fogale are not exactly in horizontal/vertical position, so there are residuals vertical parabola in the horizontal data and vis versa. The data is reprojected to make the detector straight. The reprojection matrix is unique for each carriage and is set in the `sensors.py` file. 
 
 ## Code
 
@@ -17,27 +17,56 @@ The code has been rewritten from the previous Matlab script. The matlab script w
 
 The defined Python objets are logical and correspond to the physical components of the delay line :
 
-    DelayLine 
-         Carriage. (Contain carriage coordinate convention function)
-             Sensors. (Contain the Fogale projection function)
-          Rails. (Contains the reconstructed rail coordinates)
+    DelayLineState (represent a state of a delayline computed from a delirium file). 
+        1 Carriage. (Contain carriage coordinate convention function)
+             Sensors. 
+                2 Fogale (Contain the Fogale projected value)
+                1 Inclinometer (inclinometer value)
+        1 Rails. (Contains the reconstructed rail coordinates)
               Supports. (Contain The state, and correction to apply on each supports)
-          Delirium. (Contain the data file and functions to read/handle it)
+        1 Delirium. (Contain the data file and functions to read/handle it)
+
+    DelayLineHysteresis (contain two DelayLineState objects one forward, one backward)
+
 
 Each object is defined in its own file. Some other files (sub modules) are also defined :
 
     computing.py contain common functions 
     log.py  handle the log stdout 
-    io.py input output, functions to find, list and open data files remotely or locally. 
+    io.py input output, functions to find, list and open data files remotely or locally.
+    run.py handle the automatics pcomputation, plots and webpage creation.
 
 
 ### Sensors
 
-Sensors need a Fogale delirium file, from it the object gives the opl, incl, yctr, zctr, yend, zend sensor position correct from WPS roll error. 
+Sensors need a Delirium file, from it the Sensors object gives the following value arrays (from the `.get(key)` method):
+- `opl [m]` Twice the physical distances
+- `incl [rad]`  the inclinometor value (it is the `phi` of a carriage) 
+- `yctr [mm]` y measurement of the fogale close to tunel center
+- `zctr [mm]` z measurement of the fogale close to tunel center 
+- `yend [mm]` y measurement of the fogale close to tunel end 
+- `zend [mm]` z measurement of the fogale close to tunel end  
+sensor position are corrected from WPS roll error. 
+
+Sensors have the following sub Objetc:
+- `.ctr` Fogale object of fogale close to tunel center
+- `.end` Fogale object of fogale close to tunel end
+- `.incl` Inclinometer object 
+
+#### Fogale 
+Fogale represent a fogale detector. Is has the following value arrays
+- `opl [m]` Twice the physical distances
+- `y [mm]` y measurement of the fogale
+- `z [mm]` z measurement of the fogale 
+#### Inclinometor
+Inclinometor represent a inclinometor sensor.  Is has the following value arrays:
+- `opl [m]` Twice the physical distances
+- `incl [rad]`  the inclinometor value (it is the `phi` of a carriage) 
+
+
 
 Configuration :
-
-- phi_ctr, phi_end  : the angle [rad] of the Fogale for center end end detector. Angles are different for each delay lines 
+- phi_ctr, phi_end : the angle [rad] of the Fogale for center end end detector. Angles are different for each delay lines 
 
 
  

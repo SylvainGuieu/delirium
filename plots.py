@@ -624,7 +624,7 @@ def plot_history(data, key, dlnum=0, kind="", unit="arcsec", axes=None, figure=N
     datemax = datetime.date(date.max().year + 1, 1, 1)
     axes.set_xlim(datemin, datemax)
     
-    axes.set_title("DL %d -> %s"%(dlnum, data['date'].max()))
+    axes.set_title("DL %d %s -> %s"%(dlnum, date.min(), date.max()))
 
     # rotates and right aligns the x labels, and moves the bottom of the
     # axes up to make room for them
@@ -648,7 +648,7 @@ def plot_temperature(data, key, dlnum=0, kind="", unit="arcsec", axes=None, figu
 
     axes.plot(data['temp'], data[key], "k+", **kwargs)    
     
-    axes.set_title("DL %d  -> %s"%(dlnum, data['date'].max()))
+    axes.set_title("DL %d  %s -> %s"%(dlnum, data['date'].min(), data['date'].max()))
 
     return finalyse("temperature_%s_%d_%s.png"%(kind,dlnum,key)), (axes,)
 
