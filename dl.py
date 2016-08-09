@@ -191,26 +191,32 @@ class DelayLineState(object, DataUtils):
         _, extras = self.get("psi", filterWobble=True, removeLowOrder=True, 
                              arcsec=True, extras=True)
         cor = self.supports.get_corrections()
-        Nv = len(cor['V']>0)
-        Nh = len(cor['H']>0)
+        Nv = len(cor[abs(cor['V'])>0])
+        Nh = len(cor[abs(cor['H'])>0])
         maxH = np.max(np.abs(cor['H'])) if Nv else 0.0
         maxV = np.max(np.abs(cor['V'])) if Nh else 0.0
 
         opl = self.get("opl")
 
-
+        fpoints, angles = self.carriage.get_flat_points(nflat)
         return {
             "date":self.delirium.get_date2(),
             "num":self.num,
             "wobble":extras.get('wobble_amplitude', 0.0),
-            "Nv": len(cor['V']>0),
-            "Nh": len(cor['H']>0),
+            "Nv": Nv,
+            "Nh": Nh,
             "maxH":maxH, "maxV":maxV,
-            "flatpoints": ", ".join("%4.2f"%p for p in opl[self.carriage.get_flat_points(nflat)])
+            "flatpoints": ", ".join("%4.2f"%p for p in opl[fpoints])
         }
 
 
     def write_summary(self, wf=None, nflat=5):
+        """ write summary in a text format
+        
+        returned in a text string or writen with the wf function
+        e.g.: dl.write_summary( wf=open('path/to/file.html').write )
+                
+        """
         if wf is None:
             wf = lambda txt: None
         
@@ -227,7 +233,12 @@ Wobble Amplitude (psi): {wobble:4.2f} [arcsec]
         return txt
 
     def write_summary_html(self, wf=None, nflat=5):
+        """ write summary in a html table 
+        
+        returned in a text string or writen with the wf function
+        e.g.: dl.write_summary_html( wf=open('path/to/file.html').write )
 
+        """
 
         def warning(summary, key, test):
             val = summary[key]
@@ -245,7 +256,7 @@ Wobble Amplitude (psi): {wobble:4.2f} [arcsec]
         warning(summary, "maxH", lambda v: abs(v)>=self.supports.maxcorwarning*1e3)
 
         txt = """<table class='summary'>
-<tr><td colspan=2 style='text-align:center;'>{date} DL{num}</td></tr>
+<tr><td colspan=2 >{date} DL{num}</td></tr>
 <tr><td>Vertical Corrections</td><td {maxVWarning}>{Nv}, amp. max={maxV:4.2f} [micron]</td></tr>
 <tr><td>Horizontal Corrections</td><td {maxVWarning}>{Nh}, amp. max={maxH:4.2f} [micron]</td></tr>
 <tr><td>Flattest Points</td><td>

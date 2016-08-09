@@ -496,7 +496,78 @@ class PlotSensors(PlotCollection, PlotFit,PlotParam):
         return finalyse("correction_"+key+"_"+id2file(sensors.get_id())), (axes1,axes2)
 
 class PlotCarriage(PlotCollection, PlotFit, PlotParam):
-    pass
+    def flatness(self, N=15, axes=None, figure=None, aclear=False, fclear=False, show=False,save=False,**kwargs):
+        (axtheta,axpsi,axZtheta,axZpsi), finalyse = self.axesgrid((1,4), axes, figure, aclear, fclear,show, save)
+                                
+        carriage = self.data
+        order, angle = carriage.get_flat_points(N)
+        
+        #order.sort() # sort in opl
+        theta = (carriage.get("theta", arcsec=True, order=0, removeLowOrder=True))
+        psi   = (carriage.get("psi", arcsec=True, order=0, removeLowOrder=True))
+        opl = carriage.get("opl")
+
+
+        ztheta = theta[order]
+        zpsi = psi[order]
+        zopl  = opl[order]        
+
+        i = np.arange(len(zopl))
+
+        alpha = 0.3
+
+        axtheta.barh(opl,theta, align='center', color='gray', zorder=10)
+        axtheta.barh(zopl, [max(theta)]*len(zopl), align='center', color='red', zorder=9, alpha=alpha)
+        axtheta.barh(zopl, [min(theta)]*len(zopl), align='center', color='red', zorder=9, alpha=alpha)
+
+        axtheta.set(xlabel='theta [arcsec]', ylabel="opl [m]",
+                    title=id2title(carriage.get_id())+" Profile"
+                    )
+        axpsi.barh(opl, psi, align='center', color='gray', zorder=10)
+
+        axpsi.barh(zopl, [max(psi)]*len(zopl), align='center', color='red', zorder=9, alpha=alpha)
+        axpsi.barh(zopl, [min(psi)]*len(zopl), align='center', color='red', zorder=9, alpha=alpha)
+
+        axpsi.set(xlabel='psi [arcsec]')
+
+
+
+
+        #axtheta.invert_xaxis()
+        #axtheta.set(yticks=i, yticklabels=["%4.2f"%o for o in opl])
+        #axtheta.yaxis.set_major_locator(plt.NullLocator())
+                
+        #axtheta.yaxis.tick_right()
+
+
+        axZtheta.barh(i, ztheta, align='center', color='gray', zorder=10)
+        axZtheta.set(xlabel='theta [arcsec]', 
+                    title="%d Best"%N                    
+            )
+        axZpsi.barh(i, zpsi, align='center', color='gray', zorder=10)
+        axZpsi.set(xlabel='psi [arcsec]')
+
+        #axZtheta.invert_xaxis()
+        axZtheta.set(yticks=list(i)+[N], yticklabels=["%4.2f"%o for o in zopl]+["OPL"])
+        axZtheta.set_ylim(0,N)
+        axZpsi.set_ylim(0,N)
+
+        axZpsi.yaxis.set_major_locator(plt.NullLocator())
+        axZpsi.set(yticks=[0,N], yticklabels=["best", "worst"])
+        axZpsi.yaxis.tick_right()
+        axZtheta.yaxis.tick_right()
+
+        for ax in [axtheta,axpsi, axZtheta, axZpsi]:
+            ax.margins(0.03)
+            ax.grid(True)
+
+        fig = axtheta.figure    
+        #fig.tight_layout()
+        fig.subplots_adjust(wspace=0.4) 
+        fig.set_size_inches(14,5.0)   
+
+        return finalyse("flatness_"+id2file(carriage.get_id())), (axtheta,axpsi)
+
 
 class PlotHysteresis(PlotCollection, PlotFit, PlotParam):
     def histeresis(self, key, axes=None, figure=None, aclear=False, fclear=False, show=False, save=False, arcsec=True, 

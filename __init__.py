@@ -12,6 +12,11 @@ The level of verbose can be set with:
 >>> delirium.processing.run() # to process today delirium
 >>> delirium.processing.run("2016-08-08")
 
+## If you want to create the results (and webpage) on your computer:
+>>> delirium.processing.setup(websiteroot="/path/to/my/local/directory")
+>>> delirium.processing.run("2015-12-24", keep=True) 
+# keep=True allows the result directory to stay on disk and never been cleaned up
+
 >>> dl1 = delirium.open_dl(2, "2016-08-08")
 >>> dl1.carriage.get("theta") # to get the theta value 
 >>> dl1.supports.get("Hcorrection) # to get the horizontal corrections
@@ -31,6 +36,8 @@ from . import plots
 run = processing.run
 reprocess_all  = processing.reprocess_all
 list_all_dates = processing.list_all_dates
+list_dates = processing.list_dates
+run_interval = processing.run_interval
 
 def open_dl(num, date=None, directory=None, reverse=False, file_index=-1):
     """ Return the delay line object of the last delirium found for the given date and delay line number

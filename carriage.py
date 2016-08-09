@@ -391,12 +391,18 @@ Front View
         A = self.get([p.name for p in self.params], filterWobble=filterWobble,removeLowOrder=removeLowOrder)                                                      
         return self.a2w(A, "ctr"), self.a2w(A, "end")
 
-    def get_flat_points(self, N=-1):
-        rmlo, fw = False, False
-        theta = self.get("theta",removeLowOrder=rmlo, filterWobble=fw)
-        psi   = self.get("psi",removeLowOrder=rmlo, filterWobble=fw)
-        angle = np.sqrt( psi*psi + theta*theta)        
-        return angle.argsort()[:N]
+    def get_flat_points(self, N=-1, key=None, arcsec=True):
+        rmlo, fw = True, False
+        if not key:
+            theta = self.get("theta", order=0, removeLowOrder=rmlo, filterWobble=fw, arcsec=arcsec)
+            psi   = self.get("psi",   order=0, removeLowOrder=rmlo, filterWobble=fw, arcsec=arcsec)
+            angle = np.sqrt( psi*psi + theta*theta)        
+        else:
+            angle = np.abs(self.get(key, order=0, removeLowOrder=rmlo, filterWobble=fw, arcsec=arcsec))
+        order = angle.argsort()[:N]            
+        return order, angle[order]
+
+
 
 
                 

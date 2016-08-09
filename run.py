@@ -30,17 +30,11 @@ maxDays  = 8 # keep always the delirium that are younger or maxDays old
 cashSize = 8 # keep also a max number of cashSize for file that does not match 
              # the criteria above. (useful if one execute the scripte on some old delirium) 
 
-#DEBUG = False
-### 
+
+
 ## directory where to found the yyyy-mm/delirium_files
-dldir = io.DeliriumDirectory("ftp://utcomm:Bnice2me@odyssey3.pl.eso.org/DELIRIUM")
+deliriumdir = "ftp://utcomm:Bnice2me@odyssey3.pl.eso.org/DELIRIUM"
 #dldir = io.DeliriumDirectory("/Users/sylvain/Dropbox/python/delirium/data/examples/DELIRIUM/")
-
-##
-# some file needs to be copied from the module to the webpage
-moduledir, _ = os.path.split(__file__)
-localhtmldir = io.dpath(moduledir+"/html")
-
 
 ####
 ## directory for the wiki monitoring 
@@ -49,19 +43,38 @@ localhtmldir = io.dpath(moduledir+"/html")
 #          | data 
 #                  | daily       -> daily results
 #                  | monitoring  -> monitoring files
-
-webroot = io.dpath("ftp://vlti:boulder56@vlti.pl.eso.org//diska/web/vlti/")
+websiteroot = "ftp://vlti:boulder56@vlti.pl.eso.org//diska/web/vlti/"
 #webroot = io.dpath("/Users/sylvain/tmp")
 
-deliriumdir = webroot.dpath("delirium")
-datadir = deliriumdir.dpath("data")
-dailydir, monitoringdir = datadir.dbreak("daily", "monitoring")
 
-datesfile = dailydir.fpath("dates.txt")
+def setup(deliriumroot=deliriumdir, websiteroot=websiteroot):
+    """ setup all the key path 
     
-indexfile = deliriumdir.fpath("index.html")
-indexfile.header = localhtmldir.fpath("index.html").read
+    setup is also restablishing ftp connection if time-out
+    """
+    global dldir, webroot, moduledir, localhtmldir, deliriumdir
+    global datadir, dailydir, datesfile, indexfile, monitoringdir
 
+    ##
+    # some file needs to be copied from the module to the webpage
+    moduledir, _ = os.path.split(__file__)
+    localhtmldir = io.dpath(moduledir+"/html")
+        
+    dldir = io.DeliriumDirectory(deliriumroot)        
+    webroot = io.dpath(websiteroot)
+   
+
+
+    deliriumdir = webroot.dpath("delirium")
+    datadir = deliriumdir.dpath("data")
+    dailydir, monitoringdir = datadir.dbreak("daily", "monitoring")
+    
+    datesfile = dailydir.fpath("dates.txt")
+        
+    indexfile = deliriumdir.fpath("index.html")
+    indexfile.header = localhtmldir.fpath("index.html").read
+
+setup()
 #hist_header = "%% Date  TunnelTemp(deg) Hysteresis(arcsec)\n"
 #wobble_header = "%% Date  TunnelTemp(deg) WoobleTheta(arcsec) WooblePsi(arcsec)\n"
 
@@ -79,6 +92,27 @@ def list_all_dates():
             dates.append(date)
     return dates
 
+def list_dates(start, end=None, step=1):
+    """ return a list of dates from a start and a end """
+    if step<1:
+        raise ValueError("step must be >=1 got %s"%step)
+
+    if end is None:
+        end = datetime.date.today().isoformat()
+    start, end = (datetime.date( *(int(v) for v in s.split("-"))) for s in [start,end])
+
+    step = datetime.timedelta(step)
+
+    d = start
+    dates = []
+    while (d)<=end:
+        dates.append(d.isoformat())
+        d = d+step
+
+    return dates    
+
+        
+        
 def reprocess_all(dates, plot=False, wiki=False):
     """ reprocess all the delirium for the given list of dates 
     
@@ -173,6 +207,40 @@ def prepare_web_structure(date, nocleanup=False, keep=False):
     ## copy the index.html file.
     indexfile.create()
 
+def run_interval(start, end=None, step=1, dls=range(1,7), plot=True, wiki=True, nocleanup=False, keep=False):
+    """ run delirium from start date to end date 
+    
+    Parameters
+    ----------
+    start : string
+        start date yso format 'yyyy-mm-dd'
+    end : string, optional
+        end date yso format 'yyyy-mm-dd'
+        default is today
+    step : int, optional
+        day step, default is one    
+    dls: list of int, optional
+        A list of DL number for wich the script will be executed
+    plot: bool or string, optional
+        can be True or "dm": everything ploted
+                "d" : only daily products are plotted 
+                "m"  : only monitoring products are plotted        
+        default is True
+    wiki: bool, optional
+        if True the plot and corection are sent to the webpage
+        otherwhise correction are just printed on stdout and plots on 
+        screen
+        default is True
+    nocleanup : bool, optional
+        if True old directories of the web page will not be removed
+        default if False.     
+    keep : bool, optional
+        if True force this delirium result to always be present on the webpage 
+        it will never been cleaned-up unless web_release(date) is ran.        
+    see run function for more info.
+    """
+    for date in list_dates(start, end):        
+        run(date, dls=dls, plot=plot, wiki=wiki, nocleanup=nocleanup, keep=keep)
 
 def run(date=None, dls=range(1,7), plot=True, wiki=True, nocleanup=False, keep=False):
     """ run the delirium in a secure way 
@@ -429,7 +497,7 @@ def run_daily_plot_dl(dld, todaydir, products, log):
     ### Horizontal and Vertical Corrections 
     for k  in ["H", "V"]:
         if products:
-            pfile = todaydir.fpath("DL%d_last_%s_CORR.png"%(num,k))
+            pfile = todaydir.fpath("DL%d_%s_CORR.png"%(num,k))
             with pfile.open("wb") as g:  
                 dld.rail.plot.deformations(k, figure=inc(fig), fclear=True, save=g)
             log.notice("Correction figure copied to %s"%pfile)
@@ -440,7 +508,7 @@ def run_daily_plot_dl(dld, todaydir, products, log):
 
     for k in ["theta", "psi", "phi"]:
         if products:                            
-            pfile = todaydir.fpath("DL%d_last_%s_theta.png"%(num,k))
+            pfile = todaydir.fpath("DL%d_%s_theta.png"%(num,k))
             with pfile.open("wb") as g:  
                 dld.carriage.plot.wobble_fit(k, figure=inc(fig), fclear=True, save=g)
             #archive.copy(pfile)
@@ -449,6 +517,19 @@ def run_daily_plot_dl(dld, todaydir, products, log):
         else:
             dld.carriage.plot.wobble_fit(k, figure=inc(fig), fclear=True, show=True)
     
+    if products:                            
+        pfile = todaydir.fpath("DL%d_flatness.png"%(num))
+        with pfile.open("wb") as g:  
+            dld.carriage.plot.flatness(figure=inc(fig), fclear=True, save=g)
+        #archive.copy(pfile)
+        log.notice("Flatness figure copied to %s"%pfile)        
+        products.add( num, "Flatness plot", "d", "img", pfile.filename)
+    else:
+        dld.carriage.plot.flatness(figure=inc(fig), fclear=True, show=True)
+
+
+
+
 def run_daily_plot_hysteresis(hyst, todaydir, products, log):
     """ 
     Plot all the daily plot related to hysteresis in the website or on screen if products is None 

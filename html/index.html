@@ -8,7 +8,7 @@
 	//data = {{dl_files_data}}
 		
 	imgzoomfactor = 1.25
-	zoom = -1
+	zoom = -4
 	date = "last"
 
 	barstatus = 0
@@ -33,6 +33,10 @@
 		]
 
 	function imgscale() {
+		if (zoom>=1) return Math.pow(imgzoomfactor, zoom);
+		if (zoom<=-1) return 1.0/Math.pow(imgzoomfactor, -zoom);
+		return 1
+
 		if (zoom>=1) return zoom*imgzoomfactor;
 		if (zoom<=-1) return 1/((-zoom+1)*imgzoomfactor);
 		return 1

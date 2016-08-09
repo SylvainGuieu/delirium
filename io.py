@@ -310,8 +310,9 @@ class CorrectionLog(MonitoringLog):
         data = self.read_data()
 
         cor = dl.supports.get_corrections()
-        Nv = len(cor['V']>0)
-        Nh = len(cor['H']>0)
+        
+        Nv = len(cor[abs(cor['V'])>0])
+        Nh = len(cor[abs(cor['H'])>0])        
 
         if len(np.where( (data['date']==date) * (data['temp']==temp) )[0]):
             log.notice("Entry '%s' for number of coorection already existing"%date)
