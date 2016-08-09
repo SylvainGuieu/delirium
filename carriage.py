@@ -189,7 +189,8 @@ Front View
     raw_data = None
 
     sensors_data = None 
-      
+    
+    maxwobblewarning = 3.0 # [arcsec] warning print if wobble above this value
     def __init__(self, dl, delirium=None):
         self.num = dl.num
         self.parse_range = dl.range
@@ -390,11 +391,23 @@ Front View
         A = self.get([p.name for p in self.params], filterWobble=filterWobble,removeLowOrder=removeLowOrder)                                                      
         return self.a2w(A, "ctr"), self.a2w(A, "end")
 
+    def get_flat_points(self, N=-1):
+        rmlo, fw = False, False
+        theta = self.get("theta",removeLowOrder=rmlo, filterWobble=fw)
+        psi   = self.get("psi",removeLowOrder=rmlo, filterWobble=fw)
+        angle = np.sqrt( psi*psi + theta*theta)        
+        return angle.argsort()[:N]
+
+
+                
+
+
     @property
     def delirium(self):
         """associated delirium file """
         return self.sensors.delirium
-      
+    
+
 
 
 

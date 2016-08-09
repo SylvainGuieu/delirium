@@ -380,7 +380,7 @@ class Product(fpath):
         kkind = "daily_product_names" if kind is 'd' else "monitoring_product_names"
 
         args = list(args)        
-        if ptype in ("img","txtfile"):
+        if ptype in ("img","txtfile", "htmlfile"):
             args[0] = os.path.join(self.dirs.get(kind, ""), args[0])
             
         products.setdefault("data" , {})

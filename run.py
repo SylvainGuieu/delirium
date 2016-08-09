@@ -101,8 +101,17 @@ def prepare_monitoring_web_structure():
 
     todaydir = io.dpath(dailydir, "dummydir")
 
+def web_release(date):
+    """ release the delirium web  directory for beeing kept in the history"""
+    keeper = fpath(dailydir,date+"/keep")
+    if keeper.exists():
+        dailydir.rmtree(date+"/keep")
 
-def prepare_web_structure(date):
+def web_remove(date):
+    """ remove the delirium web- directory of that date """
+    dailydir.rmtree(date)
+
+def prepare_web_structure(date, nocleanup=False, keep=False):
     """ set all the directory tree and files necessary for the webpage """
     global webroot, mdir, ddir, todaydir, monitoringdir
 
@@ -115,6 +124,8 @@ def prepare_web_structure(date):
     ## if does not exists make a dummy data.json file 
     ## so it has the creation date of now 
     todaydir.fpath("data.json").prepare()
+    if keep:
+        todaydir.fpath("keep").create()
 
     ## list all the subdirectory 
     ## check when they have been created (mtime of data.json)     
@@ -132,10 +143,15 @@ def prepare_web_structure(date):
     # Keep directory if :
     #    - the delirium is newer or as old as maxDays
     #    - the delirium is older it was one of the last *cashSize* directory created
+    #    - the directory has a file named keep 
     for i, (mtime, date) in enumerate(mtimes):
-        if i<cashSize:
+        if nocleanup:
+            tokeep.append(date)
+        elif i<cashSize:
             tokeep.append(date)
         elif (today-date)<=deltatime:
+            tokeep.append(date)
+        elif fpath(dailydir,date+"/keep").exists():
             tokeep.append(date)
         else:
             toremove.append(date)    
@@ -158,7 +174,7 @@ def prepare_web_structure(date):
     indexfile.create()
 
 
-def run(date=None, dls=range(1,7), plot=True, wiki=True):
+def run(date=None, dls=range(1,7), plot=True, wiki=True, nocleanup=False, keep=False):
     """ run the delirium in a secure way 
 
     Parameters
@@ -178,7 +194,12 @@ def run(date=None, dls=range(1,7), plot=True, wiki=True):
         otherwhise correction are just printed on stdout and plots on 
         screen
         default is True
-
+    nocleanup : bool, optional
+        if True old directories of the web page will not be removed
+        default if False.     
+    keep : bool, optional
+        if True force this delirium result to always be present on the webpage 
+        it will never been cleaned-up unless web_release(date) is ran.
     """
     global todaydir, monitoringdir
 
@@ -187,7 +208,7 @@ def run(date=None, dls=range(1,7), plot=True, wiki=True):
 
     if webroot:
         if wiki:
-            prepare_web_structure(date)
+            prepare_web_structure(date,nocleanup=nocleanup)
         else:
             prepare_monitoring_web_structure()    
     
@@ -348,7 +369,15 @@ def run_daily_correction_dl(dld, todaydir, products, log):
     log.notice("Correction file copied to %s"%web_cor_file) 
     products.add( num, "Corrections", "d", "txtfile",  web_cor_file.filename)
 
-
+    web_summary_file = todaydir.fpath("DL%d_summary.html"%num)
+    if dld.status: 
+        with web_summary_file.open("w") as g:
+            dld.write_summary_html(g.write)    
+    else:
+        with web_summary_file.open("w") as g:
+            g.write("Delirium failed")
+    products.add(num, "Summary", "d", "htmlfile", web_summary_file.filename)        
+            
 
 def run_monitoring_dl(dld, monitoringdir, log):
     """ update the monitoring files """ 

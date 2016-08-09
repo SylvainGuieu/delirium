@@ -28,6 +28,10 @@ from .log import Log, ERROR, WARNING, NOTICE, INFO, DATA
 from . import run as processing
 from . import plots
 
+run = processing.run
+reprocess_all  = processing.reprocess_all
+list_all_dates = processing.list_all_dates
+
 def open_dl(num, date=None, directory=None, reverse=False, file_index=-1):
     """ Return the delay line object of the last delirium found for the given date and delay line number
 

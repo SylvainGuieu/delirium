@@ -478,6 +478,18 @@
 			baradd(1)
 			if (callback) callback(pt);
 
+
+
+		} else if (type=="html") {
+			//pt = get_plaintext(content)
+			pt = document.createElement("span")
+			pt.innerHTML = get_product(definition)
+			content.appendChild(pt)
+			pt.definition = definition
+			pt.pos = pos
+			baradd(1)
+			if (callback) callback(pt);
+			
 		} else if (type=="txtfile") {
 			var client = new XMLHttpRequest();	
 			
@@ -487,6 +499,32 @@
 			}
 			//pt = get_plaintext(content)
 			pt = document.createElement("plaintext")
+
+			client.open('GET', get_product(definition)+"?"+rdm, true);
+			client.pt = pt
+			pt.definition = definition
+			pt.pos = pos
+			client.onreadystatechange = function() {
+			  if (this.readyState!==4)  return;
+			  //if (this.status!==200 || this.status!==0) alert(this.status);
+			  this.pt.innerHTML = this.responseText
+			  //pt.innerHTML += "\n"+this.responseText
+		      //alert(this.responseText)
+		      baradd(1)
+		      if (callback) callback(pt);	  
+			}
+			client.send();
+			content.appendChild(pt)  
+			
+		} else if (type=="htmlfile") {
+			var client = new XMLHttpRequest();	
+			
+			var rdm = script_date
+			if (rdm == undefined) {
+				var rdm = Math.random().toString(36).substring(7);
+			}
+			//pt = get_plaintext(content)
+			pt = document.createElement("span")
 
 			client.open('GET', get_product(definition)+"?"+rdm, true);
 			client.pt = pt
@@ -885,7 +923,7 @@
 			  	for (var i=0; i<keys.length; i++) {
 			  		window[keys[i]] = alldata[keys[i]]
 			  	}
-			  	
+
 			  	
 			 	update_dls()
 				update_products()	
@@ -1093,6 +1131,9 @@ h2.firstTitle  {
 .title {
 	padding-left:5px;
 	/*float:left;*/
+}
+.summary {
+	margin-bottom: 20px;
 }
 td.layoutControl {
 	border-left:thick solid #f0f0f0;

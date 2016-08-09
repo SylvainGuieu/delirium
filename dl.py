@@ -168,13 +168,6 @@ class DelayLineState(object, DataUtils):
         """ get the date 'yyyymmdd' of the used delirium file"""        
         return self.delirium.get_date()
 
-    def get_summary(self):
-        """ return a string summary of the delay line state """
-        s = """
-            Delirium executed
-            """
-
-
     @property
     def reverse(self):
         """ Flag True if delirium taken reversely """
@@ -194,6 +187,75 @@ class DelayLineState(object, DataUtils):
     def supports(self):
         return self.rail.supports    
     
+    def get_summary(self, nflat=5):
+        _, extras = self.get("psi", filterWobble=True, removeLowOrder=True, 
+                             arcsec=True, extras=True)
+        cor = self.supports.get_corrections()
+        Nv = len(cor['V']>0)
+        Nh = len(cor['H']>0)
+        maxH = np.max(np.abs(cor['H'])) if Nv else 0.0
+        maxV = np.max(np.abs(cor['V'])) if Nh else 0.0
+
+        opl = self.get("opl")
+
+
+        return {
+            "date":self.delirium.get_date2(),
+            "num":self.num,
+            "wobble":extras.get('wobble_amplitude', 0.0),
+            "Nv": len(cor['V']>0),
+            "Nh": len(cor['H']>0),
+            "maxH":maxH, "maxV":maxV,
+            "flatpoints": ", ".join("%4.2f"%p for p in opl[self.carriage.get_flat_points(nflat)])
+        }
+
+
+    def write_summary(self, wf=None, nflat=5):
+        if wf is None:
+            wf = lambda txt: None
+        
+        txt = """
+Delirium of: {date} DL{num}
+Number of corrections : 
+    Vertical : {Nv}, amp. max={maxV:4.2f} [micron]
+    Horizontal : {Nh}, amp. max={maxH:4.2f} [micron]
+5 flattest points:
+    {flatpoints} [opl]
+Wobble Amplitude (psi): {wobble:4.2f} [arcsec]
+""".format(**self.get_summary(nflat=nflat))
+        wf(txt)
+        return txt
+
+    def write_summary_html(self, wf=None, nflat=5):
+
+
+        def warning(summary, key, test):
+            val = summary[key]
+            if test(val):
+                summary[key+"Warning"] = "style='color:red'"
+            else:
+                summary[key+"Warning"] = ""
+
+        if wf is None:
+            wf = lambda txt: None
+
+        summary = self.get_summary(nflat=nflat)
+        warning(summary, "wobble", lambda v:v>=self.carriage.maxwobblewarning)
+        warning(summary, "maxV", lambda v: abs(v)>=self.supports.maxcorwarning*1e3)
+        warning(summary, "maxH", lambda v: abs(v)>=self.supports.maxcorwarning*1e3)
+
+        txt = """<table class='summary'>
+<tr><td colspan=2 style='text-align:center;'>{date} DL{num}</td></tr>
+<tr><td>Vertical Corrections</td><td {maxVWarning}>{Nv}, amp. max={maxV:4.2f} [micron]</td></tr>
+<tr><td>Horizontal Corrections</td><td {maxVWarning}>{Nh}, amp. max={maxH:4.2f} [micron]</td></tr>
+<tr><td>Flattest Points</td><td>
+    {flatpoints} [opl]</td></tr>
+<tr><td>Wobble Amplitude (psi)</td><td {wobbleWarning}>{wobble:4.2f} [arcsec]</td></tr>
+</table>
+""".format(**summary)
+        wf(txt)
+        return txt
+
 
 class DelayLineStates(object):
     """ A list of DelayLineState 
