@@ -185,7 +185,7 @@ def prepare_web_structure(date, nocleanup=False, keep=False):
             tokeep.append(date)
         elif (today-date)<=deltatime:
             tokeep.append(date)
-        elif io.fpath(dailydir,date+"/keep").exists():
+        elif io.fpath(dailydir,str(date)+"/keep").exists():
             tokeep.append(date)
         else:
             toremove.append(date)    
