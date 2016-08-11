@@ -137,7 +137,7 @@ def prepare_monitoring_web_structure():
 
 def web_release(date):
     """ release the delirium web  directory for beeing kept in the history"""
-    keeper = fpath(dailydir,date+"/keep")
+    keeper = io.fpath(dailydir,date+"/keep")
     if keeper.exists():
         dailydir.rmtree(date+"/keep")
 
@@ -185,7 +185,7 @@ def prepare_web_structure(date, nocleanup=False, keep=False):
             tokeep.append(date)
         elif (today-date)<=deltatime:
             tokeep.append(date)
-        elif fpath(dailydir,date+"/keep").exists():
+        elif io.fpath(dailydir,date+"/keep").exists():
             tokeep.append(date)
         else:
             toremove.append(date)    
