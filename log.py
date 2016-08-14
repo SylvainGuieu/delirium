@@ -20,7 +20,7 @@ verbose_level = 3
 # convert the MSG code to string 
 msgtype2string_lookup = {ERROR:"ERROR", WARNING:"WARNING", NOTICE:"NOTICE", DATA:"DATA"}
 
-counters = {m:0  for m in msgtype2string_lookup}
+counters = dict( (m,0) for m in msgtype2string_lookup)
 buffers  = {}
 
 ##

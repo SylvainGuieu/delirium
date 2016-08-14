@@ -119,7 +119,7 @@ class DeliriumPath(fpath):
 
     def load_header(self):
         self.header_txt = []
-        self.header = {k:-999.99 for k in self.header_lookup.iterkeys()}
+        self.header = dict((k,-999.99) for k in self.header_lookup.iterkeys())
 
         f = open(self)
         while True:

@@ -52,7 +52,7 @@ def set_log(*args):
                 raise ValueError("log must have a callable '%s' attribute"%a)
         log = l
     elif len(args)==3:
-        d = {a:staticmethod(f) for a,f in zip(["error", "warning", "notice"], args)}
+        d = dict((a,staticmethod(f)) for a,f in zip(["error", "warning", "notice"], args))
         log = type("log", tuple(), d)()
 
     else:        

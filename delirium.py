@@ -363,7 +363,7 @@ class DataUtils:
         if key is None:
             key = [p.name for p in self.params]
         if hasattr(key, "__iter__"):
-            return {k:self._get_extra(k, extraname, period=period) for k in key}
+            return dict( (k,self._get_extra(k, extraname, period=period)) for k in key)
 
         _, extras = self.get(key, filterWobble=True, period=period, extras=True, arcsec=arcsec)    
         return extras[extraname]
@@ -619,7 +619,7 @@ class Delirium(object, DataUtils):
 
     def load_header(self):
         self.header_txt = []
-        self.header = {k:-999.99 for k in self.header_lookup.iterkeys()}
+        self.header = dict((k,-999.99) for k in self.header_lookup.iterkeys())
         if not self.f:      
             return 
 
