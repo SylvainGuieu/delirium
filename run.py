@@ -164,11 +164,20 @@ def prepare_web_structure(date, nocleanup=False, keep=False):
     ## list all the subdirectory 
     ## check when they have been created (mtime of data.json)     
     mtimes = []
-    for subdir in dailydir.ls("[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"):
-        mtimes.append( [dailydir.getmtime(subdir+"/data.json"), datetime.date( *(int(v) for v in subdir.split("-"))) ])
+    CANMTIME = True
+    if CANMTIME:
+        for subdir in dailydir.ls("[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]"):
+            try:
+                mtime = dailydir.getmtime(subdir+"/data.json")
+            except:
+                mtime = 0.0
+            mtimes.append( [mtime, datetime.date( *(int(v) for v in subdir.split("-"))) ])
     # order by creation date
-    mtimes.sort(key=lambda i:i[0], reverse=True)
-    tokeep = []
+        mtimes.sort(key=lambda i:i[0], reverse=True)
+        tokeep = []
+    else:
+        tokeep = [datetime.date(*(int(v) for v in subdir.split("-"))) for subdir in dailydir.ls("[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]")]
+
     toremove = []
     today = datetime.date.today()
     deltatime = datetime.timedelta(maxDays)

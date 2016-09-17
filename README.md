@@ -18,22 +18,28 @@ The code has been rewritten from the previous Matlab script. The matlab script w
 The defined Python objets are logical and correspond to the physical components of the delay line :
 
 ```
-DelayLine
+DelayLine (can have several States)
        |
-       +-- n DelayLineState (2 for hysteresis)
+       +-- n DelayLineState (e.g. n=2 for hysteresis)
                  |
-                 +-- 1 Delirium (file) >.....   
-                 |                          .
-                 +-- 1 Carriage             .        >..........
-                 |        |                 .                  .
-                 |        +-- Sensors   <....                  .
+                 +-- 1 Delirium (file)   >.....   
+                 |                            .
+                 +-- 1 Carriage <......       .      >..........
+                 |        |           .       .                .
+                 |        +-- Sensors ^   <....                .
                  |              |                              .
                  |              + 2 Fogale                     .
                  |              + 1 Inclinometer               .
                  |                                             .
-                 +-- 1 Rails                        <...........  
-                        |
-                        + 1 Supports 
+                 +-- 1 Rails >.............         <...........  
+                        |                 .
+                        + 1 Supports  <....     
+
+
+Sensors get their value from the Delirium file
+Carriage attitude is computed from Sensors 
+Rails y,z profile is computed from Carriage attitude
+Supports corrections is computed from Rail profiles (and interaction matrix)
 ```
 
     DelayLineState (represent a state of a delayline computed from a delirium file). 
@@ -81,12 +87,13 @@ Fogale represent a fogale detector. Is has the following value arrays
 - `y [mm]` y measurement of the fogale
 - `z [mm]` z measurement of the fogale 
 
-Each Fogale has a one configuration value, the WPS roll correction angle. Different for each DL, these angles are set in the `fogale_angle_lookup` lookup dictionary in `sensors.py`
+Each Fogale has a one configuration value, the WPS roll correction angle. Different for each DL, 
+these angles are set in the `fogale_angle_lookup` lookup dictionary in `sensors.py`
 
-#### Inclinometor
-Inclinometor represent a inclinometor sensor.  Is has the following value arrays:
+#### Inclinometer
+Inclinometer represent the inclinometer sensor.  Is has the following value arrays:
 - `opl [m]` Twice the physical distances
-- `incl [rad]`  the inclinometor value (it is the `phi` of a carriage) 
+- `incl [rad]`  the inclinometer value (it is the `phi` of a carriage) 
 
 ## Carriage
 The carriage is defined from a Sensors object (itself defined from a delirium file). It represent the carriage position and angle at each opl.
@@ -98,7 +105,8 @@ The carriage can be defined in space by 6 parameters (6 array values):
 - `phi [rad]`   Roll angle
 - `theta [rad]` Pitch angle
 - `psi [rad]`   Yaw angle 
-This natural coordinates can be transformed to Fogale measurement (and inclinometer) by geometric consideration of the carriage and position of the sensors on it. 
+
+This natural coordinates can be transformed to Fogale+Inclinometer measurements by geometric consideration of the carriage dimensions and position of the sensors on it. 
 The attached figure shows the carriage and the main cotes. 
 ![Delirium_carriage](Delirium_carriage.jpg)
 
@@ -213,10 +221,6 @@ And the following configuration parameters:
 |                     |               |      | computing the rail deformation                              |
 |---------------------|---------------|------|-------------------------------------------------------------|
 ```
-
-
-
-
 
 
 
