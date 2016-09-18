@@ -170,6 +170,8 @@ def prepare_web_structure(date, nocleanup=False, keep=False):
             try:
                 mtime = dailydir.getmtime(subdir+"/data.json")
             except:
+                ## this appen when the data.json does not exists
+                ## the diretory will not be added
                 mtime = 0.0
             mtimes.append( [mtime, datetime.date( *(int(v) for v in subdir.split("-"))) ])
     # order by creation date
@@ -188,7 +190,11 @@ def prepare_web_structure(date, nocleanup=False, keep=False):
     #    - the delirium is older it was one of the last *cashSize* directory created
     #    - the directory has a file named keep 
     for i, (mtime, date) in enumerate(mtimes):
-        if nocleanup:
+        if mtime==0.0: # -> no data.jason file  
+            if not nocleanup:
+                toremove.append(date)    
+            continue
+        if nocleanup:          
             tokeep.append(date)
         elif i<cashSize:
             tokeep.append(date)
